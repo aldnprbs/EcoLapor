@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "781624354564",
+    "project_id": "ecolapor-caedf",
+    "storage_bucket": "ecolapor-caedf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:781624354564:android:3a812f1257e6de7d761251",
+        "android_client_info": {
+          "package_name": "com.example.ecolapor"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCrIexbdz5_qQGZtyDI3Fs4ja0wGjrV9xM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
