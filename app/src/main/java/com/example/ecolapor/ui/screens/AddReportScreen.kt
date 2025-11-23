@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -50,32 +51,46 @@ fun AddReportScreen(navController: NavController, viewModel: ReportViewModel = v
     var description by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("Sampah") }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
+    var showImageSourceDialog by remember { mutableStateOf(false) }
 
-    // --- SETUP KAMERA ---
-    val tempUri = remember {
-        try {
-            val file = File.createTempFile("report_img_", ".jpg", context.externalCacheDir)
-            FileProvider.getUriForFile(
-                Objects.requireNonNull(context),
-                context.packageName + ".provider",
-                file
-            )
-        } catch (e: Exception) {
-            null
+    // --- SETUP GALLERY PICKER ---
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            imageUri = uri
         }
     }
+
+    // --- SETUP KAMERA ---
+    var tempUri by remember { mutableStateOf<Uri?>(null) }
 
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
-        if (success && tempUri != null) imageUri = tempUri
+        if (success && tempUri != null) {
+            imageUri = tempUri
+        }
     }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
-        if (isGranted && tempUri != null) cameraLauncher.launch(tempUri)
-        else Toast.makeText(context, "Izin kamera ditolak", Toast.LENGTH_SHORT).show()
+        if (isGranted) {
+            try {
+                val file = File.createTempFile("report_img_", ".jpg", context.externalCacheDir)
+                tempUri = FileProvider.getUriForFile(
+                    context,
+                    context.packageName + ".provider",
+                    file
+                )
+                cameraLauncher.launch(tempUri!!)
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, "Izin kamera ditolak", Toast.LENGTH_SHORT).show()
+        }
     }
 
     // --- CEK STATUS UPLOAD ---
@@ -93,6 +108,46 @@ fun AddReportScreen(navController: NavController, viewModel: ReportViewModel = v
             }
             else -> {}
         }
+    }
+
+    // Dialog untuk memilih sumber gambar
+    if (showImageSourceDialog) {
+        AlertDialog(
+            onDismissRequest = { showImageSourceDialog = false },
+            title = { Text("Pilih Sumber Gambar") },
+            text = { Text("Pilih dari mana Anda ingin mengambil gambar") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showImageSourceDialog = false
+                    galleryLauncher.launch("image/*")
+                }) {
+                    Text("Galeri")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showImageSourceDialog = false
+                    val permissionCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
+                    if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
+                        try {
+                            val file = File.createTempFile("report_img_", ".jpg", context.externalCacheDir)
+                            tempUri = FileProvider.getUriForFile(
+                                context,
+                                context.packageName + ".provider",
+                                file
+                            )
+                            cameraLauncher.launch(tempUri!!)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                    }
+                }) {
+                    Text("Kamera")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -129,12 +184,7 @@ fun AddReportScreen(navController: NavController, viewModel: ReportViewModel = v
                     .background(Color(0xFFF0F0F0))
                     .border(2.dp, primaryColor, RoundedCornerShape(16.dp))
                     .clickable {
-                        val permissionCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
-                        if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
-                            if (tempUri != null) cameraLauncher.launch(tempUri)
-                        } else {
-                            permissionLauncher.launch(Manifest.permission.CAMERA)
-                        }
+                        showImageSourceDialog = true
                     },
                 contentAlignment = Alignment.Center
             ) {
@@ -147,8 +197,9 @@ fun AddReportScreen(navController: NavController, viewModel: ReportViewModel = v
                     )
                 } else {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.CameraAlt, null, modifier = Modifier.size(48.dp), tint = Color.Gray)
-                        Text("Tekan untuk ambil foto", color = Color.Gray)
+                        Icon(Icons.Default.Image, null, modifier = Modifier.size(48.dp), tint = Color.Gray)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Tekan untuk pilih gambar", color = Color.Gray)
                     }
                 }
             }
