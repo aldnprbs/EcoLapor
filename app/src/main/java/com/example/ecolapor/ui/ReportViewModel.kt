@@ -23,10 +23,10 @@ class ReportViewModel(application: Application) : AndroidViewModel(application) 
         description: String,
         category: String,
         imageUri: Uri?,
-        location: GeoPoint?
+        location: GeoPoint?,
+        isDraft: Boolean = false,
+        onSuccess: () -> Unit = {}
     ) {
-        // PERUBAHAN 1: Hapus validasi "imageUri == null"
-        // Sekarang hanya Deskripsi dan Kategori yang wajib
         if (description.isBlank() || category.isBlank()) {
             uiState = ReportState.Error("Kategori dan Deskripsi wajib diisi!")
             return
@@ -37,37 +37,42 @@ class ReportViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             var imageUrl = ""
 
-            // PERUBAHAN 2: Cek dulu, apakah user melampirkan foto?
+            // Upload image if provided
             if (imageUri != null) {
-                // Kalau ada foto, upload dulu
                 val uploadResult = repository.uploadImage(imageUri)
 
                 if (uploadResult.isSuccess) {
                     imageUrl = uploadResult.getOrNull() ?: ""
                 } else {
-                    // Jika upload foto gagal, batalkan pengiriman laporan
                     uiState = ReportState.Error("Gagal upload foto: ${uploadResult.exceptionOrNull()?.message}")
                     return@launch
                 }
             }
-            // Jika imageUri == null, lewati proses upload, imageUrl tetap string kosong ""
 
-            // 3. Buat data laporan
             val newReport = Report(
                 category = category,
                 description = description,
-                imageUrl = imageUrl, // Bisa berisi URL foto, atau kosong jika tidak ada foto
+                imageUrl = imageUrl,
                 location = location ?: GeoPoint(0.0, 0.0),
                 timestamp = Timestamp.now(),
-                status = "Terkirim"
+                status = if (isDraft) "Tersimpan" else "Terkirim"
             )
 
-            // 4. Kirim ke Firestore
-            val reportResult = repository.addReport(newReport)
-            if (reportResult.isSuccess) {
-                uiState = ReportState.Success
+            // Save as draft or send to server
+            val result = if (isDraft) {
+                repository.saveDraftReport(newReport)
             } else {
-                uiState = ReportState.Error("Gagal mengirim laporan")
+                repository.addReport(newReport)
+            }
+
+            if (result.isSuccess) {
+                uiState = ReportState.Success
+                onSuccess() // Callback untuk refresh
+            } else {
+                uiState = ReportState.Error(
+                    if (isDraft) "Gagal menyimpan draft" 
+                    else "Gagal mengirim laporan"
+                )
             }
         }
     }

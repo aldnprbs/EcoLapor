@@ -12,5 +12,7 @@ data class ReportEntity(
     val description: String,
     val imageUrl: String,
     val status: String,
-    val timestamp: Long
+    val timestamp: Long,
+    val latitude: Double = 0.0,
+    val longitude: Double = 0.0
 )

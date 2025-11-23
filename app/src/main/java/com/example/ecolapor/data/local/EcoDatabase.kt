@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [ReportEntity::class], version = 1)
+@Database(entities = [ReportEntity::class], version = 2, exportSchema = false)
 abstract class EcoDatabase : RoomDatabase() {
     abstract fun reportDao(): ReportDao
 
@@ -19,7 +19,9 @@ abstract class EcoDatabase : RoomDatabase() {
                     context.applicationContext,
                     EcoDatabase::class.java,
                     "eco_database"
-                ).build()
+                )
+                .fallbackToDestructiveMigration() // Hapus data lama jika schema berubah
+                .build()
                 INSTANCE = instance
                 instance
             }

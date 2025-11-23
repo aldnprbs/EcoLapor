@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -43,7 +44,10 @@ import java.util.Objects
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddReportScreen(navController: NavController) {
+fun AddReportScreen(
+    navController: NavController,
+    homeViewModel: com.example.ecolapor.ui.HomeViewModel? = null
+) {
     val context = LocalContext.current
     val viewModel: ReportViewModel = viewModel(
         factory = object : androidx.lifecycle.ViewModelProvider.Factory {
@@ -61,6 +65,69 @@ fun AddReportScreen(navController: NavController) {
     var category by remember { mutableStateOf("Sampah") }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var showImageSourceDialog by remember { mutableStateOf(false) }
+    var currentLocation by remember { mutableStateOf<GeoPoint?>(null) }
+    
+    // Location permission launcher
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
+            // Permission granted, get location
+            val fusedLocationClient = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(context)
+            try {
+                fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                    if (location != null) {
+                        currentLocation = GeoPoint(location.latitude, location.longitude)
+                        Toast.makeText(context, "Lokasi ditemukan: ${location.latitude}, ${location.longitude}", Toast.LENGTH_SHORT).show()
+                        android.util.Log.d("AddReportScreen", "Location: ${location.latitude}, ${location.longitude}")
+                    } else {
+                        Toast.makeText(context, "Lokasi tidak ditemukan, coba lagi", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: SecurityException) {
+                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, "Izin lokasi ditolak", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    // Get current location
+    LaunchedEffect(Unit) {
+        val hasFineLocation = ContextCompat.checkSelfPermission(
+            context, 
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        
+        val hasCoarseLocation = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        
+        if (hasFineLocation || hasCoarseLocation) {
+            // Already have permission, get location
+            val fusedLocationClient = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(context)
+            try {
+                fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                    if (location != null) {
+                        currentLocation = GeoPoint(location.latitude, location.longitude)
+                        android.util.Log.d("AddReportScreen", "Location: ${location.latitude}, ${location.longitude}")
+                    }
+                }
+            } catch (e: SecurityException) {
+                android.util.Log.e("AddReportScreen", "Security exception: ${e.message}")
+            }
+        } else {
+            // Request permission
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
+    }
 
     // --- SETUP GALLERY PICKER ---
     val galleryLauncher = rememberLauncherForActivityResult(
@@ -107,7 +174,8 @@ fun AddReportScreen(navController: NavController) {
     LaunchedEffect(uiState) {
         when (uiState) {
             is ReportState.Success -> {
-                Toast.makeText(context, "Laporan Berhasil Dikirim!", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Berhasil!", Toast.LENGTH_LONG).show()
+                homeViewModel?.refreshReports() // Refresh list di home
                 viewModel.resetState()
                 navController.popBackStack()
             }
@@ -239,10 +307,29 @@ fun AddReportScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // 4. TOMBOL KIRIM
+            // 4. TOMBOL SIMPAN DRAFT
+            OutlinedButton(
+                onClick = {
+                    viewModel.submitReport(description, category, imageUri, currentLocation, isDraft = true)
+                },
+                enabled = uiState !is ReportState.Loading,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(50.dp),
+                border = BorderStroke(2.dp, primaryColor)
+            ) {
+                if (uiState is ReportState.Loading) {
+                    CircularProgressIndicator(color = primaryColor, modifier = Modifier.size(24.dp))
+                } else {
+                    Text("SIMPAN DRAFT", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = primaryColor)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 5. TOMBOL KIRIM LAPORAN
             Button(
                 onClick = {
-                    viewModel.submitReport(description, category, imageUri, GeoPoint(0.0, 0.0))
+                    viewModel.submitReport(description, category, imageUri, currentLocation, isDraft = false)
                 },
                 enabled = uiState !is ReportState.Loading,
                 modifier = Modifier.fillMaxWidth().height(56.dp),

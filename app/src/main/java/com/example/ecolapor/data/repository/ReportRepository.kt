@@ -191,6 +191,107 @@ class ReportRepository(private val context: Context? = null) {
             Result.failure(e)
         }
     }
+    
+    suspend fun saveDraftReport(report: Report): Result<Boolean> {
+        return try {
+            if (context == null) {
+                return Result.failure(Exception("Context is null"))
+            }
+            
+            val user = auth.currentUser ?: return Result.failure(Exception("Belum login"))
+            val draftId = UUID.randomUUID().toString()
+            
+            val draftEntity = ReportEntity(
+                id = draftId,
+                userId = user.uid,
+                userName = user.displayName ?: "Warga",
+                category = report.category,
+                description = report.description,
+                imageUrl = report.imageUrl,
+                status = "Tersimpan",
+                timestamp = System.currentTimeMillis(),
+                latitude = report.location?.latitude ?: 0.0,
+                longitude = report.location?.longitude ?: 0.0
+            )
+            
+            reportDao?.insert(draftEntity)
+            Result.success(true)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun sendDraftReport(reportEntity: ReportEntity): Result<Boolean> {
+        return try {
+            // Upload to Firestore
+            val report = Report(
+                id = "",
+                userId = reportEntity.userId,
+                userName = reportEntity.userName,
+                category = reportEntity.category,
+                description = reportEntity.description,
+                imageUrl = reportEntity.imageUrl,
+                status = "Terkirim",
+                timestamp = com.google.firebase.Timestamp(Date(reportEntity.timestamp)),
+                location = com.google.firebase.firestore.GeoPoint(reportEntity.latitude, reportEntity.longitude)
+            )
+            
+            firestore.collection("reports").add(report).await()
+            
+            // Delete from local after successful upload
+            reportDao?.deleteById(reportEntity.id)
+            
+            Result.success(true)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun deleteDraftReport(reportId: String): Result<Boolean> {
+        return try {
+            reportDao?.deleteById(reportId)
+            Result.success(true)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun deleteSentReport(reportId: String): Result<Boolean> {
+        return try {
+            // Delete from Firestore
+            firestore.collection("reports")
+                .document(reportId)
+                .delete()
+                .await()
+            Result.success(true)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun getAllReportsIncludingDrafts(): List<Report> {
+        val reports = mutableListOf<Report>()
+        
+        // Get ALL reports from local database (both drafts and sent/cached reports)
+        if (reportDao != null) {
+            val allLocalReports = reportDao.getAllReports().map { entity ->
+                Report(
+                    id = entity.id,
+                    userId = entity.userId,
+                    userName = entity.userName,
+                    category = entity.category,
+                    description = entity.description,
+                    imageUrl = entity.imageUrl,
+                    status = entity.status,
+                    timestamp = Timestamp(Date(entity.timestamp)),
+                    location = com.google.firebase.firestore.GeoPoint(entity.latitude, entity.longitude)
+                )
+            }
+            reports.addAll(allLocalReports)
+        }
+        
+        return reports
+    }
 
     fun getReportsRealtime(onDataChanged: (List<Report>) -> Unit, onError: (Exception) -> Unit) {
 
@@ -205,7 +306,8 @@ class ReportRepository(private val context: Context? = null) {
                         description = entity.description,
                         imageUrl = entity.imageUrl,
                         status = entity.status,
-                        timestamp = Timestamp(Date(entity.timestamp))
+                        timestamp = Timestamp(Date(entity.timestamp)),
+                        location = com.google.firebase.firestore.GeoPoint(0.0, 0.0)
                     )
                 }
                 // Kirim data offline ke UI
@@ -223,7 +325,10 @@ class ReportRepository(private val context: Context? = null) {
                     return@addSnapshotListener
                 }
                 if (snapshot != null) {
-                    val reports = snapshot.toObjects(Report::class.java)
+                    val reports = snapshot.documents.mapNotNull { doc ->
+                        val report = doc.toObject(Report::class.java)
+                        report?.copy(id = doc.id)
+                    }
 
                     onDataChanged(reports)
 
@@ -238,11 +343,14 @@ class ReportRepository(private val context: Context? = null) {
                                     description = report.description,
                                     imageUrl = report.imageUrl,
                                     status = report.status,
-                                    timestamp = report.timestamp?.toDate()?.time ?: System.currentTimeMillis()
+                                    timestamp = report.timestamp?.toDate()?.time ?: System.currentTimeMillis(),
+                                    latitude = report.location?.latitude ?: 0.0,
+                                    longitude = report.location?.longitude ?: 0.0
                                 )
                             }
-                            reportDao.clearAll() // Hapus cache lama
-                            reportDao.insertAll(entities) // Simpan cache baru
+                            // Hanya hapus report yang terkirim, JANGAN hapus draft!
+                            reportDao.clearSentReports() // Hapus cache lama (yang terkirim saja)
+                            reportDao.insertAll(entities) // Simpan cache baru dari Firestore
                         }
                     }
                 }
