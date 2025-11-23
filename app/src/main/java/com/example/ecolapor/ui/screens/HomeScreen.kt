@@ -1,5 +1,8 @@
 package com.example.ecolapor.ui.screens
 
+import android.graphics.BitmapFactory
+import android.util.Base64
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -115,6 +119,84 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
 }
 
 @Composable
+fun ReportImageLoader(imageUrl: String, modifier: Modifier = Modifier) {
+    var isLoading by remember { mutableStateOf(true) }
+    var hasError by remember { mutableStateOf(false) }
+    var bitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    
+    // Check if it's a Base64 data URL
+    if (imageUrl.startsWith("data:image/")) {
+        // Decode Base64 asynchronously to avoid blocking UI
+        LaunchedEffect(imageUrl) {
+            try {
+                val base64String = imageUrl.substringAfter("base64,")
+                val imageBytes = Base64.decode(base64String, Base64.DEFAULT)
+                val decodedBitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                
+                if (decodedBitmap != null) {
+                    bitmap = decodedBitmap
+                    hasError = false
+                } else {
+                    hasError = true
+                }
+            } catch (e: Exception) {
+                hasError = true
+                android.util.Log.e("ReportImageLoader", "Failed to decode Base64: ${e.message}")
+            } finally {
+                isLoading = false
+            }
+        }
+        
+        Box(
+            modifier = modifier,
+            contentAlignment = Alignment.Center
+        ) {
+            when {
+                isLoading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(40.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                hasError -> {
+                    Text("Gambar error", color = Color.Gray, fontSize = 12.sp)
+                }
+                bitmap != null -> {
+                    Image(
+                        bitmap = bitmap!!.asImageBitmap(),
+                        contentDescription = "Foto Laporan",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
+        }
+    } else if (imageUrl.startsWith("http")) {
+        // Regular URL from Firebase Storage - use Coil
+        AsyncImage(
+            model = imageUrl,
+            contentDescription = "Foto Laporan",
+            modifier = modifier,
+            contentScale = ContentScale.Crop,
+            onLoading = { isLoading = true },
+            onSuccess = { isLoading = false },
+            onError = { 
+                isLoading = false
+                hasError = true
+            }
+        )
+    } else {
+        // Empty or invalid URL
+        Box(
+            modifier = modifier,
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Tidak ada gambar", color = Color.Gray, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
 fun ReportItem(report: Report) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -125,13 +207,11 @@ fun ReportItem(report: Report) {
         Column {
             // Tampilkan gambar jika URL tidak kosong
             if (report.imageUrl.isNotBlank()) {
-                AsyncImage(
-                    model = report.imageUrl,
-                    contentDescription = "Foto Laporan",
+                ReportImageLoader(
+                    imageUrl = report.imageUrl,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(200.dp),
-                    contentScale = ContentScale.Crop
+                        .height(200.dp)
                 )
             }
 
