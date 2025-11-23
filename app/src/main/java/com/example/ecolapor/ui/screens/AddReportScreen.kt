@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -42,8 +43,16 @@ import java.util.Objects
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddReportScreen(navController: NavController, viewModel: ReportViewModel = viewModel()) {
+fun AddReportScreen(navController: NavController) {
     val context = LocalContext.current
+    val viewModel: ReportViewModel = viewModel(
+        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                @Suppress("UNCHECKED_CAST")
+                return ReportViewModel(context.applicationContext as android.app.Application) as T
+            }
+        }
+    )
     val primaryColor = MaterialTheme.colorScheme.primary
     val scrollState = rememberScrollState()
 

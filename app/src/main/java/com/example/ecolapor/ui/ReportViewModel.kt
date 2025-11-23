@@ -1,10 +1,11 @@
 package com.example.ecolapor.ui
 
+import android.app.Application
 import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ecolapor.data.model.Report
 import com.example.ecolapor.data.repository.ReportRepository
@@ -12,8 +13,8 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.GeoPoint
 import kotlinx.coroutines.launch
 
-class ReportViewModel : ViewModel() {
-    private val repository = ReportRepository()
+class ReportViewModel(application: Application) : AndroidViewModel(application) {
+    private val repository = ReportRepository(application.applicationContext)
 
     var uiState by mutableStateOf<ReportState>(ReportState.Idle)
         private set
