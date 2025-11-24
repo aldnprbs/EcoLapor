@@ -7,35 +7,26 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -47,7 +38,6 @@ import com.example.ecolapor.ui.ReportState
 import com.example.ecolapor.ui.ReportViewModel
 import com.google.firebase.firestore.GeoPoint
 import java.io.File
-import java.util.Objects
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,46 +54,35 @@ fun AddReportScreen(
             }
         }
     )
+
     val primaryColor = MaterialTheme.colorScheme.primary
-    val secondaryColor = MaterialTheme.colorScheme.secondary
     val surfaceColor = MaterialTheme.colorScheme.surface
-    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val scrollState = rememberScrollState()
 
-    // State Form
     var description by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("Sampah") }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var showImageSourceDialog by remember { mutableStateOf(false) }
     var currentLocation by remember { mutableStateOf<GeoPoint?>(null) }
 
-    // Location permission launcher
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
             permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
-            // Permission granted, get location
             val fusedLocationClient = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(context)
             try {
                 fusedLocationClient.lastLocation.addOnSuccessListener { location ->
                     if (location != null) {
                         currentLocation = GeoPoint(location.latitude, location.longitude)
-                        Toast.makeText(context, "Lokasi ditemukan: ${location.latitude}, ${location.longitude}", Toast.LENGTH_SHORT).show()
-                        android.util.Log.d("AddReportScreen", "Location: ${location.latitude}, ${location.longitude}")
-                    } else {
-                        Toast.makeText(context, "Lokasi tidak ditemukan, coba lagi", Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: SecurityException) {
                 Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
             }
-        } else {
-            Toast.makeText(context, "Izin lokasi ditolak", Toast.LENGTH_SHORT).show()
         }
     }
 
-    // Get current location
     LaunchedEffect(Unit) {
         val hasFineLocation = ContextCompat.checkSelfPermission(
             context,
@@ -116,20 +95,17 @@ fun AddReportScreen(
         ) == PackageManager.PERMISSION_GRANTED
 
         if (hasFineLocation || hasCoarseLocation) {
-            // Already have permission, get location
             val fusedLocationClient = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(context)
             try {
                 fusedLocationClient.lastLocation.addOnSuccessListener { location ->
                     if (location != null) {
                         currentLocation = GeoPoint(location.latitude, location.longitude)
-                        android.util.Log.d("AddReportScreen", "Location: ${location.latitude}, ${location.longitude}")
                     }
                 }
             } catch (e: SecurityException) {
                 android.util.Log.e("AddReportScreen", "Security exception: ${e.message}")
             }
         } else {
-            // Request permission
             locationPermissionLauncher.launch(
                 arrayOf(
                     Manifest.permission.ACCESS_FINE_LOCATION,
@@ -139,7 +115,6 @@ fun AddReportScreen(
         }
     }
 
-    // --- SETUP GALLERY PICKER ---
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -148,7 +123,6 @@ fun AddReportScreen(
         }
     }
 
-    // --- SETUP KAMERA ---
     var tempUri by remember { mutableStateOf<Uri?>(null) }
 
     val cameraLauncher = rememberLauncherForActivityResult(
@@ -179,13 +153,12 @@ fun AddReportScreen(
         }
     }
 
-    // --- CEK STATUS UPLOAD ---
     val uiState = viewModel.uiState
     LaunchedEffect(uiState) {
         when (uiState) {
             is ReportState.Success -> {
                 Toast.makeText(context, "Berhasil!", Toast.LENGTH_LONG).show()
-                homeViewModel?.refreshReports() // Refresh list di home
+                homeViewModel?.refreshReports()
                 viewModel.resetState()
                 navController.popBackStack()
             }
@@ -197,27 +170,35 @@ fun AddReportScreen(
         }
     }
 
-    // Dialog untuk memilih sumber gambar
     if (showImageSourceDialog) {
         AlertDialog(
             onDismissRequest = { showImageSourceDialog = false },
-            title = { Text("Pilih Sumber Gambar", fontWeight = FontWeight.Bold) },
-            text = { Text("Pilih dari mana Anda ingin mengambil gambar") },
+            title = {
+                Text(
+                    "Pilih Sumber Gambar",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text("Pilih dari mana Anda ingin mengambil gambar")
+            },
             confirmButton = {
-                FilledTonalButton(
+                Button(
                     onClick = {
                         showImageSourceDialog = false
                         galleryLauncher.launch("image/*")
                     },
-                    modifier = Modifier.padding(end = 8.dp)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = primaryColor
+                    )
                 ) {
-                    Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(Icons.Default.Image, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text("Galeri")
                 }
             },
             dismissButton = {
-                FilledTonalButton(
+                OutlinedButton(
                     onClick = {
                         showImageSourceDialog = false
                         val permissionCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
@@ -238,18 +219,18 @@ fun AddReportScreen(
                         }
                     }
                 ) {
-                    Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(Icons.Default.CameraAlt, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text("Kamera")
                 }
             },
-            containerColor = surfaceColor
+            shape = RoundedCornerShape(20.dp)
         )
     }
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
+            TopAppBar(
                 title = {
                     Text(
                         "Buat Laporan Baru",
@@ -258,18 +239,7 @@ fun AddReportScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(
-                        onClick = { navController.popBackStack() },
-                        modifier = Modifier.background(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.2f),
-                                    Color.Transparent
-                                )
-                            ),
-                            shape = RoundedCornerShape(50)
-                        )
-                    ) {
+                    IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             Icons.Default.ArrowBack,
                             contentDescription = "Kembali",
@@ -277,10 +247,8 @@ fun AddReportScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = primaryColor,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = primaryColor
                 )
             )
         }
@@ -289,86 +257,89 @@ fun AddReportScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .background(Color(0xFFF8F9FA))
                 .verticalScroll(scrollState)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFFF8F9FA),
-                            Color(0xFFE9ECEF)
-                        )
-                    )
-                ),
-            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header Section
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                primaryColor,
-                                secondaryColor
-                            )
-                        )
-                    )
-                    .padding(vertical = 24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        "Laporkan Masalah Lingkungan",
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        "Bantu jaga lingkungan sekitar kita",
-                        color = Color.White.copy(alpha = 0.9f),
-                        fontSize = 14.sp
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Main Content Card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
-                    .shadow(
-                        elevation = 8.dp,
-                        shape = RoundedCornerShape(20.dp),
-                        clip = true
-                    ),
+                    .padding(top = 0.dp),
+                shape = RoundedCornerShape(0.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = surfaceColor
-                ),
-                shape = RoundedCornerShape(20.dp)
+                    containerColor = primaryColor
+                )
             ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
-                ) {
-                    // 1. UPLOAD FOTO SECTION
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                Icons.Default.CameraAlt,
-                                contentDescription = null,
-                                tint = primaryColor,
-                                modifier = Modifier.size(20.dp)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    primaryColor,
+                                    primaryColor.copy(alpha = 0.8f)
+                                )
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                        )
+                        .padding(24.dp)
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            "Laporkan Masalah Lingkungan",
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "Bantu jaga lingkungan sekitar kita",
+                            color = Color.White.copy(alpha = 0.9f),
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = surfaceColor),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(primaryColor.copy(alpha = 0.1f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.CameraAlt,
+                                    contentDescription = null,
+                                    tint = primaryColor,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 "Foto Bukti",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                                color = onSurfaceColor
+                                fontSize = 16.sp
                             )
                         }
 
@@ -376,25 +347,14 @@ fun AddReportScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(200.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(
-                                    brush = Brush.verticalGradient(
-                                        colors = listOf(
-                                            Color(0xFFF8F9FA),
-                                            Color(0xFFE9ECEF)
-                                        )
-                                    )
-                                )
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFF8F9FA))
                                 .border(
                                     2.dp,
-                                    Brush.horizontalGradient(
-                                        colors = listOf(primaryColor, secondaryColor)
-                                    ),
-                                    RoundedCornerShape(16.dp)
+                                    if (imageUri != null) primaryColor else Color(0xFFE0E0E0),
+                                    RoundedCornerShape(12.dp)
                                 )
-                                .clickable {
-                                    showImageSourceDialog = true
-                                },
+                                .clickable { showImageSourceDialog = true },
                             contentAlignment = Alignment.Center
                         ) {
                             if (imageUri != null) {
@@ -404,32 +364,13 @@ fun AddReportScreen(
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Crop
                                 )
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(
-                                            brush = Brush.verticalGradient(
-                                                colors = listOf(
-                                                    Color.Transparent,
-                                                    Color.Black.copy(alpha = 0.3f)
-                                                )
-                                            )
-                                        )
-                                )
-                                Text(
-                                    "Ketuk untuk mengganti foto",
-                                    color = Color.White,
-                                    fontSize = 14.sp,
-                                    modifier = Modifier.align(Alignment.BottomCenter)
-                                        .padding(16.dp)
-                                )
                             } else {
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     modifier = Modifier.padding(16.dp)
                                 ) {
                                     Icon(
-                                        Icons.Default.CameraAlt,
+                                        Icons.Default.AddPhotoAlternate,
                                         contentDescription = null,
                                         modifier = Modifier.size(48.dp),
                                         tint = primaryColor
@@ -437,266 +378,237 @@ fun AddReportScreen(
                                     Spacer(modifier = Modifier.height(12.dp))
                                     Text(
                                         "Tambahkan Foto Bukti",
-                                        color = onSurfaceColor,
                                         fontWeight = FontWeight.Medium
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        "Ketuk untuk memilih dari galeri atau kamera",
-                                        color = onSurfaceColor.copy(alpha = 0.7f),
+                                        "Ketuk untuk memilih gambar",
                                         fontSize = 12.sp,
-                                        textAlign = TextAlign.Center
+                                        color = Color.Gray
                                     )
                                 }
                             }
                         }
                     }
+                }
 
-                    // 2. KATEGORI SECTION
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = surfaceColor),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                Icons.Default.Category,
-                                contentDescription = null,
-                                tint = primaryColor,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(primaryColor.copy(alpha = 0.1f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Category,
+                                    contentDescription = null,
+                                    tint = primaryColor,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 "Kategori Laporan",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                                color = onSurfaceColor
+                                fontSize = 16.sp
                             )
                         }
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             listOf("Sampah", "Jalan", "Fasilitas").forEach { item ->
-                                Card(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .padding(horizontal = 4.dp)
-                                        .clickable { category = item }
-                                        .border(
-                                            2.dp,
-                                            if (category == item) primaryColor else Color.Transparent,
-                                            RoundedCornerShape(12.dp)
-                                        ),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = if (category == item)
-                                            primaryColor.copy(alpha = 0.1f)
-                                        else
-                                            surfaceColor
-                                    ),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                                    shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier.padding(vertical = 12.dp)
-                                    ) {
-                                        Text(
-                                            text = item,
-                                            color = if (category == item) primaryColor else onSurfaceColor,
-                                            fontWeight = FontWeight.Medium,
-                                            fontSize = 14.sp
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // 3. DESKRIPSI SECTION
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                Icons.Default.Description,
-                                contentDescription = null,
-                                tint = primaryColor,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "Deskripsi Masalah",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                                color = onSurfaceColor
-                            )
-                        }
-
-                        // PERBAIKAN: OutlinedTextField yang benar untuk Material3
-                        OutlinedTextField(
-                            value = description,
-                            onValueChange = { description = it },
-                            label = { Text("Jelaskan masalah yang ditemukan...") },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(120.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedTextColor = onSurfaceColor,
-                                unfocusedTextColor = onSurfaceColor,
-                                focusedLabelColor = primaryColor,
-                                unfocusedLabelColor = Color.Gray.copy(alpha = 0.7f),
-                                focusedIndicatorColor = primaryColor,
-                                unfocusedIndicatorColor = Color.Gray.copy(alpha = 0.3f),
-                            )
-                        )
-                    }
-
-                    // 4. LOKASI SECTION
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                Icons.Default.LocationOn,
-                                contentDescription = null,
-                                tint = primaryColor,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "Lokasi Saat Ini",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                                color = onSurfaceColor
-                            )
-                        }
-
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = primaryColor.copy(alpha = 0.1f)
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Default.LocationOn,
-                                    contentDescription = null,
-                                    tint = primaryColor,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        if (currentLocation != null) "Lokasi berhasil didapatkan"
-                                        else "Mendapatkan lokasi...",
-                                        fontWeight = FontWeight.Medium,
-                                        color = onSurfaceColor
+                                FilterChip(
+                                    selected = category == item,
+                                    onClick = { category = item },
+                                    label = { Text(item) },
+                                    modifier = Modifier.weight(1f),
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = primaryColor,
+                                        selectedLabelColor = Color.White
                                     )
-                                    Text(
-                                        if (currentLocation != null)
-                                            "${currentLocation!!.latitude}, ${currentLocation!!.longitude}"
-                                        else "Pastikan GPS aktif",
-                                        fontSize = 12.sp,
-                                        color = onSurfaceColor.copy(alpha = 0.7f)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // 5. ACTION BUTTONS
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        // Tombol Simpan Draft
-                        FilledTonalButton(
-                            onClick = {
-                                viewModel.submitReport(description, category, imageUri, currentLocation, isDraft = true)
-                            },
-                            enabled = uiState !is ReportState.Loading,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = surfaceColor
-                            )
-                        ) {
-                            if (uiState is ReportState.Loading) {
-                                CircularProgressIndicator(
-                                    color = primaryColor,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            } else {
-                                Icon(
-                                    Icons.Default.Save,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    "SIMPAN DRAFT",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-
-                        // Tombol Kirim Laporan
-                        Button(
-                            onClick = {
-                                viewModel.submitReport(description, category, imageUri, currentLocation, isDraft = false)
-                            },
-                            enabled = uiState !is ReportState.Loading,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = primaryColor
-                            ),
-                            elevation = ButtonDefaults.buttonElevation(
-                                defaultElevation = 4.dp,
-                                pressedElevation = 8.dp
-                            )
-                        ) {
-                            if (uiState is ReportState.Loading) {
-                                CircularProgressIndicator(
-                                    color = Color.White,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            } else {
-                                Icon(
-                                    Icons.Default.Send,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    "KIRIM LAPORAN",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = surfaceColor),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(primaryColor.copy(alpha = 0.1f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Description,
+                                    contentDescription = null,
+                                    tint = primaryColor,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                "Deskripsi Masalah",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                        }
+
+                        OutlinedTextField(
+                            value = description,
+                            onValueChange = { description = it },
+                            placeholder = { Text("Jelaskan masalah yang ditemukan...") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = primaryColor,
+                                unfocusedBorderColor = Color(0xFFE0E0E0)
+                            )
+                        )
+                    }
+                }
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = primaryColor.copy(alpha = 0.1f)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.LocationOn,
+                            contentDescription = null,
+                            tint = primaryColor,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                if (currentLocation != null) "Lokasi berhasil didapatkan"
+                                else "Mendapatkan lokasi...",
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                if (currentLocation != null)
+                                    "${currentLocation!!.latitude}, ${currentLocation!!.longitude}"
+                                else "Pastikan GPS aktif",
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+                }
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            viewModel.submitReport(description, category, imageUri, currentLocation, isDraft = true)
+                        },
+                        enabled = uiState !is ReportState.Loading,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .border(
+                                width = 2.dp,
+                                color = primaryColor,
+                                shape = RoundedCornerShape(12.dp)
+                            ),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = primaryColor
+                        )
+                    ) {
+                        if (uiState is ReportState.Loading) {
+                            CircularProgressIndicator(
+                                color = primaryColor,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Save,
+                                contentDescription = null
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "SIMPAN DRAFT",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Button(
+                        onClick = {
+                            viewModel.submitReport(description, category, imageUri, currentLocation, isDraft = false)
+                        },
+                        enabled = uiState !is ReportState.Loading,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = primaryColor
+                        )
+                    ) {
+                        if (uiState is ReportState.Loading) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Send,
+                                contentDescription = null
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "KIRIM LAPORAN",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
     }
 }
