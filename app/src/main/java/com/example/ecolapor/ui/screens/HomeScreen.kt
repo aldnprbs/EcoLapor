@@ -2,6 +2,7 @@ package com.example.ecolapor.ui.screens
 
 import android.graphics.BitmapFactory
 import android.util.Base64
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,16 +16,14 @@ import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material.icons.Icons
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -33,15 +32,19 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
 import com.example.ecolapor.data.model.Report
 import com.example.ecolapor.ui.HomeViewModel
 import com.example.ecolapor.ui.Screen
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -53,6 +56,11 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
     val surfaceColor = MaterialTheme.colorScheme.surface
 
     var searchQuery by remember { mutableStateOf("") }
+    var showLogoutDialog by remember { mutableStateOf(false) }
+    var selectedReport by remember { mutableStateOf<Report?>(null) }
+    var isRefreshing by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
 
     val filteredReports = reports.filter { report ->
         searchQuery.isEmpty() ||
@@ -64,10 +72,6 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
     val savedReports = filteredReports.filter { it.status == "Tersimpan" }
     val sentReports = filteredReports.filter { it.status == "Terkirim" || it.status == "Selesai" }
 
-    var showLogoutDialog by remember { mutableStateOf(false) }
-    var selectedReport by remember { mutableStateOf<Report?>(null) }
-
-    var isRefreshing by remember { mutableStateOf(false) }
     val pullRefreshState = rememberPullRefreshState(
         refreshing = isRefreshing,
         onRefresh = {
@@ -80,394 +84,192 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
         }
     )
 
-    val context = LocalContext.current
+    val infiniteTransition = rememberInfiniteTransition(label = "")
+    val fabRotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 20000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = ""
+    )
 
     if (showLogoutDialog) {
-        AlertDialog(
-            onDismissRequest = { showLogoutDialog = false },
-            title = {
-                Text(
-                    "Konfirmasi Logout",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Column {
-                    Text(
-                        "Apakah Anda yakin ingin logout?",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Anda harus login kembali untuk menggunakan aplikasi.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray.copy(alpha = 0.7f)
-                    )
-                }
-            },
-            confirmButton = {
+        Dialog(onDismissRequest = { showLogoutDialog = false }) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 16.dp)
+            ) {
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.padding(28.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Button(
-                        onClick = {
-                            showLogoutDialog = false
-                            viewModel.logout()
-                            navController.navigate(Screen.Welcome.route) {
-                                popUpTo(Screen.Home.route) { inclusive = true }
-                            }
-                        },
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFF44336)
-                        )
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFF44336).copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.Default.ExitToApp,
-                            contentDescription = "Logout",
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "Ya, Logout",
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 16.sp
+                            contentDescription = null,
+                            tint = Color(0xFFF44336),
+                            modifier = Modifier.size(32.dp)
                         )
                     }
 
-                    OutlinedButton(
-                        onClick = { showLogoutDialog = false },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = Color.Gray
-                        )
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Text(
+                        "Konfirmasi Logout",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        "Apakah Anda yakin ingin keluar dari akun ini?",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(
-                            "Batal",
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 16.sp
-                        )
+                        OutlinedButton(
+                            onClick = { showLogoutDialog = false },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Batal")
+                        }
+
+                        Button(
+                            onClick = {
+                                showLogoutDialog = false
+                                viewModel.logout()
+                                navController.navigate(Screen.Welcome.route) {
+                                    popUpTo(Screen.Home.route) { inclusive = true }
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFF44336)
+                            )
+                        ) {
+                            Text("Logout")
+                        }
                     }
                 }
+            }
+        }
+    }
+
+    if (selectedReport != null) {
+        ReportActionDialog(
+            report = selectedReport!!,
+            onDismiss = { selectedReport = null },
+            onSend = {
+                viewModel.sendDraftReport(selectedReport!!)
+                selectedReport = null
             },
-            containerColor = Color.White,
-            shape = RoundedCornerShape(20.dp)
+            onLocation = { report ->
+                val lat = report.location?.latitude ?: 0.0
+                val lng = report.location?.longitude ?: 0.0
+                if (lat != 0.0 && lng != 0.0) {
+                    val uri = android.net.Uri.parse("geo:$lat,$lng?q=$lat,$lng(Lokasi)")
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
+                    intent.setPackage("com.google.android.apps.maps")
+                    try {
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        val browserIntent = android.content.Intent(
+                            android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse("https://www.google.com/maps/search/?api=1&query=$lat,$lng")
+                        )
+                        context.startActivity(browserIntent)
+                    }
+                } else {
+                    android.widget.Toast.makeText(context, "Lokasi tidak tersedia", android.widget.Toast.LENGTH_SHORT).show()
+                }
+                selectedReport = null
+            },
+            onDelete = {
+                viewModel.deleteReport(selectedReport!!.id)
+                selectedReport = null
+            }
         )
-    }
-
-    if (selectedReport != null && selectedReport!!.status == "Tersimpan") {
-        Dialog(onDismissRequest = { selectedReport = null }) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
-            ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Text(
-                        "Opsi Laporan Draft",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    
-                    Text(
-                        "Pilih aksi untuk laporan yang tersimpan",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray
-                    )
-                    
-                    Button(
-                        onClick = {
-                            viewModel.sendDraftReport(selectedReport!!)
-                            selectedReport = null
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4CAF50)
-                        )
-                    ) {
-                        Icon(
-                            Icons.Default.Send,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "Kirim Laporan",
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 16.sp
-                        )
-                    }
-
-                    Button(
-                        onClick = {
-                            val report = selectedReport!!
-                            val lat = report.location?.latitude ?: 0.0
-                            val lng = report.location?.longitude ?: 0.0
-
-                            if (lat != 0.0 && lng != 0.0) {
-                                val uri = android.net.Uri.parse("geo:$lat,$lng?q=$lat,$lng(Lokasi Laporan)")
-                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
-                                intent.setPackage("com.google.android.apps.maps")
-
-                                try {
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    val browserIntent = android.content.Intent(
-                                        android.content.Intent.ACTION_VIEW,
-                                        android.net.Uri.parse("https://www.google.com/maps/search/?api=1&query=$lat,$lng")
-                                    )
-                                    context.startActivity(browserIntent)
-                                }
-                            } else {
-                                android.widget.Toast.makeText(
-                                    context,
-                                    "Lokasi tidak tersedia",
-                                    android.widget.Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                            selectedReport = null
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF2196F3)
-                        )
-                    ) {
-                        Icon(
-                            Icons.Default.LocationOn,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "Lacak Lokasi",
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 16.sp
-                        )
-                    }
-
-                    Button(
-                        onClick = {
-                            viewModel.deleteReport(selectedReport!!.id)
-                            selectedReport = null
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFF44336)
-                        )
-                    ) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "Hapus Laporan",
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 16.sp
-                        )
-                    }
-                    
-                    OutlinedButton(
-                        onClick = { selectedReport = null },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = Color.Gray
-                        )
-                    ) {
-                        Text(
-                            "Batal",
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 16.sp
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    if (selectedReport != null && (selectedReport!!.status == "Terkirim" || selectedReport!!.status == "Selesai")) {
-        Dialog(onDismissRequest = { selectedReport = null }) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
-            ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Text(
-                        "Opsi Laporan",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    
-                    Text(
-                        "Pilih aksi untuk laporan ini",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray
-                    )
-                    
-                    Button(
-                        onClick = {
-                            val report = selectedReport!!
-                            val lat = report.location?.latitude ?: 0.0
-                            val lng = report.location?.longitude ?: 0.0
-
-                            if (lat != 0.0 && lng != 0.0) {
-                                val uri = android.net.Uri.parse("geo:$lat,$lng?q=$lat,$lng(Lokasi Laporan)")
-                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
-                                intent.setPackage("com.google.android.apps.maps")
-
-                                try {
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    val browserIntent = android.content.Intent(
-                                        android.content.Intent.ACTION_VIEW,
-                                        android.net.Uri.parse("https://www.google.com/maps/search/?api=1&query=$lat,$lng")
-                                    )
-                                    context.startActivity(browserIntent)
-                                }
-                            } else {
-                                android.widget.Toast.makeText(
-                                    context,
-                                    "Lokasi tidak tersedia",
-                                    android.widget.Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                            selectedReport = null
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF2196F3)
-                        )
-                    ) {
-                        Icon(
-                            Icons.Default.LocationOn,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "Lacak Lokasi",
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 16.sp
-                        )
-                    }
-
-                    Button(
-                        onClick = {
-                            viewModel.deleteReport(selectedReport!!.id)
-                            selectedReport = null
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFF44336)
-                        )
-                    ) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "Hapus Laporan",
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 16.sp
-                        )
-                    }
-                    
-                    OutlinedButton(
-                        onClick = { selectedReport = null },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = Color.Gray
-                        )
-                    ) {
-                        Text(
-                            "Batal",
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 16.sp
-                        )
-                    }
-                }
-            }
-        }
     }
 
     Scaffold(
         topBar = {
+            // Ganti SmallTopAppBar dengan TopAppBar biasa
             TopAppBar(
                 title = {
-                    Text(
-                        "EcoLapor",
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = primaryColor,
-                    titleContentColor = Color.White
-                ),
-                actions = {
-                    IconButton(onClick = {
-                        android.widget.Toast.makeText(
-                            context,
-                            "Fitur notifikasi coming soon!",
-                            android.widget.Toast.LENGTH_SHORT
-                        ).show()
-                    }) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         Icon(
-                            Icons.Default.Notifications,
-                            contentDescription = "Notifikasi",
-                            tint = Color.White
+                            Icons.Default.Eco,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Text(
+                            "EcoLapor",
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White,
+                            fontSize = 22.sp
                         )
                     }
-                    IconButton(onClick = {
-                        navController.navigate(Screen.Profile.route)
-                    }) {
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = primaryColor
+                ),
+                actions = {
+                    IconButton(
+                        onClick = {
+                            android.widget.Toast.makeText(context, "Notifikasi coming soon!", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    ) {
+                        Box {
+                            Icon(
+                                Icons.Default.Notifications,
+                                contentDescription = null,
+                                tint = Color.White
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.Red)
+                                    .align(Alignment.TopEnd)
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = { navController.navigate(Screen.Profile.route) }
+                    ) {
                         Icon(
-                            Icons.Default.Person,
-                            contentDescription = "Profil",
+                            Icons.Default.AccountCircle,
+                            contentDescription = null,
                             tint = Color.White
                         )
                     }
@@ -475,28 +277,52 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { navController.navigate(Screen.AddReport.route) },
-                containerColor = primaryColor,
-                contentColor = Color.White,
-                modifier = Modifier
-                    .size(65.dp)
-                    .shadow(8.dp, CircleShape)
-            ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = "Buat Laporan",
-                    modifier = Modifier.size(30.dp)
+            Box(contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .rotate(fabRotation)
+                        .clip(CircleShape)
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    primaryColor.copy(alpha = 0.3f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
                 )
+
+                FloatingActionButton(
+                    onClick = { navController.navigate(Screen.AddReport.route) },
+                    containerColor = primaryColor,
+                    contentColor = Color.White,
+                    modifier = Modifier
+                        .size(65.dp)
+                        .shadow(12.dp, CircleShape)
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
             }
         }
-    ) { innerPadding ->
+    ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(padding)
                 .pullRefresh(pullRefreshState)
-                .background(Color(0xFFF8F9FA))
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFFF5F7FA),
+                            Color(0xFFE8EFF5)
+                        )
+                    )
+                )
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -504,131 +330,39 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 item {
-                    Column {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(140.dp),
-                            shape = RoundedCornerShape(20.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = primaryColor
-                            )
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        Brush.linearGradient(
-                                            colors = listOf(
-                                                primaryColor,
-                                                Color(0xFF1976D2)
-                                            )
-                                        )
-                                    )
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .padding(20.dp)
-                                        .align(Alignment.CenterStart)
-                                ) {
-                                    Text(
-                                        "Selamat Datang!",
-                                        style = MaterialTheme.typography.titleLarge,
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        "Laporkan masalah lingkungan di sekitarmu",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = Color.White.copy(alpha = 0.9f)
-                                    )
-                                }
-                            }
-                        }
+                    WelcomeCard(primaryColor)
+                }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                item {
+                    SearchBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        surfaceColor = surfaceColor
+                    )
+                }
 
-                        TextField(
-                            value = searchQuery,
-                            onValueChange = { query ->
-                                searchQuery = query
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                            placeholder = { Text("Cari laporan...") },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.Search,
-                                    contentDescription = "Search",
-                                    tint = Color.Gray
-                                )
-                            },
-                            trailingIcon = {
-                                if (searchQuery.isNotEmpty()) {
-                                    IconButton(
-                                        onClick = { searchQuery = "" }
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Close,
-                                            contentDescription = "Clear search",
-                                            tint = Color.Gray
-                                        )
-                                    }
-                                }
-                            },
-                            colors = TextFieldDefaults.colors(
-                                unfocusedContainerColor = surfaceColor,
-                                focusedContainerColor = surfaceColor,
-                                unfocusedIndicatorColor = Color.Transparent,
-                                focusedIndicatorColor = Color.Transparent
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            StatCard(
-                                title = "Total",
-                                value = reports.size.toString(),
-                                color = Color(0xFF4CAF50),
-                                modifier = Modifier.weight(1f)
-                            )
-                            StatCard(
-                                title = "Tersimpan",
-                                value = reports.filter { it.status == "Tersimpan" }.size.toString(),
-                                color = Color(0xFFFFC107),
-                                modifier = Modifier.weight(1f)
-                            )
-                            StatCard(
-                                title = "Terkirim",
-                                value = reports.filter { it.status == "Terkirim" || it.status == "Selesai" }.size.toString(),
-                                color = Color(0xFF2196F3),
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
+                item {
+                    StatisticsCards(
+                        total = reports.size,
+                        saved = savedReports.size,
+                        sent = sentReports.size
+                    )
                 }
 
                 if (savedReports.isNotEmpty()) {
                     item {
                         SectionHeader(
-                            title = "📝 Draft Tersimpan",
+                            icon = Icons.Default.Drafts,
+                            title = "Draft Tersimpan",
                             count = savedReports.size,
-                            subtitle = "Laporan yang belum dikirim"
+                            subtitle = "Laporan yang belum dikirim",
+                            color = Color(0xFFFFC107)
                         )
                     }
                     items(savedReports) { report ->
-                        ModernReportItem(
+                        PremiumReportCard(
                             report = report,
-                            onReportClick = {
-                                selectedReport = report
-                            }
+                            onClick = { selectedReport = report }
                         )
                     }
                 }
@@ -636,52 +370,24 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
                 if (sentReports.isNotEmpty()) {
                     item {
                         SectionHeader(
-                            title = "📤 Laporan Terkirim",
+                            icon = Icons.Default.Send,
+                            title = "Laporan Terkirim",
                             count = sentReports.size,
-                            subtitle = "Laporan yang sudah dikirim"
+                            subtitle = "Laporan yang sudah dikirim",
+                            color = Color(0xFF4CAF50)
                         )
                     }
                     items(sentReports) { report ->
-                        ModernReportItem(
+                        PremiumReportCard(
                             report = report,
-                            onReportClick = {
-                                selectedReport = report
-                            }
+                            onClick = { selectedReport = report }
                         )
                     }
                 }
 
                 if (savedReports.isEmpty() && sentReports.isEmpty()) {
                     item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 60.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                Text(
-                                    if (searchQuery.isNotEmpty()) "🔍" else "📝",
-                                    fontSize = 48.sp
-                                )
-                                Text(
-                                    if (searchQuery.isNotEmpty()) "Tidak ada hasil pencarian" else "Belum ada laporan",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = Color.Gray
-                                )
-                                Text(
-                                    if (searchQuery.isNotEmpty())
-                                        "Coba kata kunci lain"
-                                    else
-                                        "Mulai buat laporan pertama Anda",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color.Gray.copy(alpha = 0.7f)
-                                )
-                            }
-                        }
+                        EmptyState(hasSearch = searchQuery.isNotEmpty())
                     }
                 }
             }
@@ -690,66 +396,277 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
                 refreshing = isRefreshing,
                 state = pullRefreshState,
                 modifier = Modifier.align(Alignment.TopCenter),
-                contentColor = primaryColor
+                contentColor = primaryColor,
+                backgroundColor = Color.White
             )
         }
     }
 }
 
 @Composable
+fun WelcomeCard(primaryColor: Color) {
+    val infiniteTransition = rememberInfiniteTransition(label = "")
+    val shimmer by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = ""
+    )
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(160.dp),
+        shape = RoundedCornerShape(24.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            primaryColor,
+                            Color(0xFF1976D2),
+                            primaryColor
+                        ),
+                        startX = shimmer - 1000f,
+                        endX = shimmer
+                    )
+                )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Selamat Datang! 👋",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Mari bersama jaga lingkungan kita",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.95f)
+                    )
+                }
+
+                // Ganti EcoRounded dengan Eco biasa
+                Icon(
+                    Icons.Default.Eco,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.2f),
+                    modifier = Modifier.size(100.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    surfaceColor: Color
+) {
+    var text by remember { mutableStateOf(query) }
+
+    LaunchedEffect(query) {
+        text = query
+    }
+
+    TextField(
+        value = text,
+        onValueChange = {
+            text = it
+            onQueryChange(it)
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(4.dp, RoundedCornerShape(16.dp)),
+        placeholder = {
+            Text("Cari laporan...", color = Color.Gray.copy(alpha = 0.6f))
+        },
+        leadingIcon = {
+            // Ganti SearchRounded dengan Search biasa
+            Icon(
+                Icons.Default.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+        },
+        trailingIcon = {
+            if (text.isNotEmpty()) {
+                IconButton(onClick = {
+                    text = ""
+                    onQueryChange("")
+                }) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = null,
+                        tint = Color.Gray
+                    )
+                }
+            }
+        },
+        colors = TextFieldDefaults.colors(
+            unfocusedContainerColor = Color.White,
+            focusedContainerColor = Color.White,
+            unfocusedIndicatorColor = Color.Transparent,
+            focusedIndicatorColor = Color.Transparent
+        ),
+        shape = RoundedCornerShape(16.dp),
+        singleLine = true
+    )
+}
+
+@Composable
+fun StatisticsCards(total: Int, saved: Int, sent: Int) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        StatCard(
+            icon = Icons.Default.Assessment,
+            title = "Total",
+            value = total.toString(),
+            color = Color(0xFF4CAF50),
+            modifier = Modifier.weight(1f)
+        )
+        StatCard(
+            icon = Icons.Default.Drafts,
+            title = "Draft",
+            value = saved.toString(),
+            color = Color(0xFFFFC107),
+            modifier = Modifier.weight(1f)
+        )
+        StatCard(
+            icon = Icons.Default.CheckCircle,
+            title = "Terkirim",
+            value = sent.toString(),
+            color = Color(0xFF2196F3),
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
 fun StatCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     value: String,
     color: Color,
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
+        modifier = modifier
+            .height(100.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
             modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.Start,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                title,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
-            )
-            Text(
-                value,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = color
-            )
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+
+            Column {
+                Text(
+                    value,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = color
+                )
+                Text(
+                    title,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+            }
         }
     }
 }
 
 @Composable
 fun SectionHeader(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     count: Int,
-    subtitle: String
+    subtitle: String,
+    color: Color
 ) {
-    Column {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column {
-                Text(
-                    "$title ($count)",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(20.dp)
                 )
+            }
+
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(color.copy(alpha = 0.15f))
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            count.toString(),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = color
+                        )
+                    }
+                }
                 Text(
                     subtitle,
                     style = MaterialTheme.typography.bodySmall,
@@ -757,36 +674,66 @@ fun SectionHeader(
                 )
             }
         }
-        Spacer(modifier = Modifier.height(8.dp))
     }
 }
 
 @Composable
-fun ModernReportItem(
+fun PremiumReportCard(
     report: Report,
-    onReportClick: () -> Unit = {}
+    onClick: () -> Unit
 ) {
+    var visible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        delay(50)
+        visible = true
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onReportClick() }
-            .shadow(2.dp, RoundedCornerShape(16.dp)),
-        shape = RoundedCornerShape(16.dp),
+            .clickable(onClick = onClick)
+            .scale(if (visible) 1f else 0.95f),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column {
             if (report.imageUrl.isNotBlank()) {
-                ReportImageLoader(
-                    imageUrl = report.imageUrl,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                        .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                )
+                Box {
+                    ReportImageLoader(
+                        imageUrl = report.imageUrl,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(12.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                when (report.status) {
+                                    "Terkirim" -> Color(0xFF4CAF50)
+                                    "Tersimpan" -> Color(0xFFFFC107)
+                                    else -> Color(0xFF2196F3)
+                                }
+                            )
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            report.status,
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
 
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(modifier = Modifier.padding(20.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -794,43 +741,15 @@ fun ModernReportItem(
                 ) {
                     Box(
                         modifier = Modifier
-                            .background(
-                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
-                                shape = RoundedCornerShape(8.dp)
-                            )
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Text(
-                            text = report.category,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                            fontSize = 12.sp,
+                            report.category,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                color = when (report.status) {
-                                    "Terkirim" -> Color(0xFF4CAF50).copy(alpha = 0.1f)
-                                    "Tersimpan" -> Color(0xFFFFC107).copy(alpha = 0.1f)
-                                    "Selesai" -> Color(0xFF2196F3).copy(alpha = 0.1f)
-                                    else -> Color.Gray.copy(alpha = 0.1f)
-                                },
-                                shape = RoundedCornerShape(8.dp)
-                            )
-                    ) {
-                        Text(
-                            text = report.status,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = when (report.status) {
-                                "Terkirim" -> Color(0xFF4CAF50)
-                                "Tersimpan" -> Color(0xFFFFC107)
-                                "Selesai" -> Color(0xFF2196F3)
-                                else -> Color.Gray
-                            }
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -838,38 +757,33 @@ fun ModernReportItem(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = report.description,
+                    report.description,
                     style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 2,
+                    maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
-                    lineHeight = 20.sp
+                    lineHeight = 22.sp
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.LocationOn,
-                            null,
-                            modifier = Modifier.size(16.dp),
-                            tint = Color.Gray
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-
-                        val dateFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
-                        val dateString = report.timestamp?.toDate()?.let { dateFormat.format(it) } ?: "-"
-
-                        Text(
-                            text = dateString,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
-                        )
-                    }
+                    Icon(
+                        Icons.Default.AccessTime,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = Color.Gray
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    val dateFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
+                    val dateString = report.timestamp?.toDate()?.let { dateFormat.format(it) } ?: "-"
+                    Text(
+                        dateString,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
                 }
             }
         }
@@ -882,70 +796,318 @@ fun ReportImageLoader(imageUrl: String, modifier: Modifier = Modifier) {
     var hasError by remember { mutableStateOf(false) }
     var bitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
 
-    if (imageUrl.startsWith("data:image/")) {
-        LaunchedEffect(imageUrl) {
-            try {
+    LaunchedEffect(imageUrl) {
+        try {
+            if (imageUrl.startsWith("data:image/")) {
                 val base64String = imageUrl.substringAfter("base64,")
                 val imageBytes = Base64.decode(base64String, Base64.DEFAULT)
                 val decodedBitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-
                 if (decodedBitmap != null) {
                     bitmap = decodedBitmap
                     hasError = false
                 } else {
                     hasError = true
                 }
-            } catch (e: Exception) {
+            } else {
+                // Handle URL images or other cases
                 hasError = true
-                android.util.Log.e("ReportImageLoader", "Failed to decode Base64: ${e.message}")
-            } finally {
-                isLoading = false
             }
+        } catch (e: Exception) {
+            hasError = true
+        } finally {
+            isLoading = false
         }
+    }
 
-        Box(
-            modifier = modifier,
-            contentAlignment = Alignment.Center
-        ) {
-            when {
-                isLoading -> {
+    Box(modifier = modifier) {
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Gray.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(40.dp),
+                        modifier = Modifier.size(32.dp),
+                        strokeWidth = 3.dp,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
-                hasError -> {
-                    Text("Gambar error", color = Color.Gray, fontSize = 12.sp)
+            }
+            hasError || bitmap == null -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Gray.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.BrokenImage,
+                            contentDescription = "Gagal memuat gambar",
+                            modifier = Modifier.size(48.dp),
+                            tint = Color.Gray.copy(alpha = 0.5f)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Gagal memuat gambar",
+                            fontSize = 12.sp,
+                            color = Color.Gray
+                        )
+                    }
                 }
-                bitmap != null -> {
-                    Image(
-                        bitmap = bitmap!!.asImageBitmap(),
-                        contentDescription = "Foto Laporan",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+            }
+            else -> {
+                Image(
+                    bitmap = bitmap!!.asImageBitmap(),
+                    contentDescription = "Laporan gambar",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ReportActionDialog(
+    report: Report,
+    onDismiss: () -> Unit,
+    onSend: () -> Unit,
+    onLocation: (Report) -> Unit,
+    onDelete: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 16.dp)
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(
+                    "Pilih Aksi",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                if (report.status == "Tersimpan") {
+                    ActionButton(
+                        icon = Icons.Default.Send,
+                        text = "Kirim Laporan",
+                        color = Color(0xFF4CAF50),
+                        onClick = onSend
                     )
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                ActionButton(
+                    icon = Icons.Default.LocationOn,
+                    text = "Lacak Lokasi",
+                    color = Color(0xFF2196F3),
+                    onClick = { onLocation(report) }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                ActionButton(
+                    icon = Icons.Default.Delete,
+                    text = "Hapus Laporan",
+                    color = Color(0xFFF44336),
+                    onClick = onDelete
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Batal")
                 }
             }
         }
-    } else if (imageUrl.startsWith("http")) {
-        AsyncImage(
-            model = imageUrl,
-            contentDescription = "Foto Laporan",
-            modifier = modifier,
-            contentScale = ContentScale.Crop,
-            onLoading = { isLoading = true },
-            onSuccess = { isLoading = false },
-            onError = {
-                isLoading = false
-                hasError = true
-            }
-        )
-    } else {
+    }
+}
+
+@Composable
+fun ActionButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+    color: Color,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(50.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = color)
+    ) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(text, fontWeight = FontWeight.Medium)
+    }
+}
+
+@Composable
+fun EmptyState(hasSearch: Boolean) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 80.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Box(
-            modifier = modifier,
+            modifier = Modifier
+                .size(120.dp)
+                .clip(CircleShape)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                            Color.Transparent
+                        )
+                    )
+                ),
             contentAlignment = Alignment.Center
         ) {
-            Text("Tidak ada gambar", color = Color.Gray, fontSize = 12.sp)
+            Icon(
+                if (hasSearch) Icons.Default.SearchOff else Icons.Default.NoteAdd,
+                contentDescription = null,
+                modifier = Modifier.size(60.dp),
+                tint = Color.Gray.copy(alpha = 0.4f)
+            )
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            if (hasSearch) "Tidak ada hasil" else "Belum ada laporan",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = Color.Gray
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            if (hasSearch) "Coba kata kunci lain" else "Mulai buat laporan pertama",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.Gray.copy(alpha = 0.7f)
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun HomeScreenPreview() {
+    MaterialTheme {
+        Surface(modifier = Modifier.fillMaxSize()) {
+            // HomeScreen(navController = rememberNavController())
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun WelcomeCardPreview() {
+    MaterialTheme {
+        WelcomeCard(primaryColor = MaterialTheme.colorScheme.primary)
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun PremiumReportCardPreview() {
+    MaterialTheme {
+        val sampleReport = Report(
+            id = "1",
+            category = "Sampah Plastik",
+            description = "Tumpukan sampah plastik di pinggir jalan yang mengganggu pemandangan dan berpotensi menyumbat saluran air.",
+            imageUrl = "",
+            status = "Tersimpan",
+            timestamp = com.google.firebase.Timestamp.now(),
+            location = null
+        )
+
+        PremiumReportCard(
+            report = sampleReport,
+            onClick = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun StatisticsCardsPreview() {
+    MaterialTheme {
+        StatisticsCards(total = 10, saved = 3, sent = 7)
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun SearchBarPreview() {
+    MaterialTheme {
+        var query by remember { mutableStateOf("") }
+        SearchBar(
+            query = query,
+            onQueryChange = { query = it },
+            surfaceColor = MaterialTheme.colorScheme.surface
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun SectionHeaderPreview() {
+    MaterialTheme {
+        SectionHeader(
+            icon = Icons.Default.Drafts,
+            title = "Draft Tersimpan",
+            count = 5,
+            subtitle = "Laporan yang belum dikirim",
+            color = Color(0xFFFFC107)
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun ReportActionDialogPreview() {
+    MaterialTheme {
+        val sampleReport = Report(
+            id = "1",
+            category = "Sampah Plastik",
+            description = "Sample report",
+            imageUrl = "",
+            status = "Tersimpan",
+            timestamp = com.google.firebase.Timestamp.now(),
+            location = null
+        )
+
+        ReportActionDialog(
+            report = sampleReport,
+            onDismiss = {},
+            onSend = {},
+            onLocation = {},
+            onDelete = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun EmptyStatePreview() {
+    MaterialTheme {
+        EmptyState(hasSearch = false)
     }
 }
