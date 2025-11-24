@@ -19,7 +19,6 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -94,11 +93,13 @@ fun SplashScreen(navController: NavController) {
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxSize()
         ) {
+            // Logo Section - lebih terpusat
             Box(
                 modifier = Modifier
-                    .size(140.dp)
+                    .size(160.dp)
                     .scale(scale.value)
                     .alpha(alpha.value),
                 contentAlignment = Alignment.Center
@@ -106,12 +107,12 @@ fun SplashScreen(navController: NavController) {
                 Image(
                     painter = painterResource(id = R.drawable.logo_ecolapor_white),
                     contentDescription = "EcoLapor Logo",
-                    modifier = Modifier.size(120.dp)
+                    modifier = Modifier.size(140.dp)
                 )
 
                 Box(
                     modifier = Modifier
-                        .size(140.dp)
+                        .size(160.dp)
                         .background(
                             brush = Brush.radialGradient(
                                 colors = listOf(
@@ -123,10 +124,15 @@ fun SplashScreen(navController: NavController) {
                 )
             }
 
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Text Section - lebih rapi dan terpusat
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.alpha(alpha.value)
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .alpha(alpha.value)
+                    .padding(horizontal = 24.dp)
             ) {
                 Text(
                     text = "EcoLapor",
@@ -134,7 +140,8 @@ fun SplashScreen(navController: NavController) {
                     fontSize = 42.sp,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 2.sp,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    lineHeight = 44.sp
                 )
 
                 Text(
@@ -148,33 +155,39 @@ fun SplashScreen(navController: NavController) {
                 )
             }
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(60.dp))
 
-            Box(
-                modifier = Modifier
-                    .width(120.dp)
-                    .height(4.dp)
-                    .alpha(sloganAlpha.value)
-                    .background(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.3f),
-                                Color.White,
-                                Color.White.copy(alpha = 0.3f)
+            // Loading Section - lebih terpusat
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.alpha(sloganAlpha.value)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(120.dp)
+                        .height(3.dp)
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.3f),
+                                    Color.White,
+                                    Color.White.copy(alpha = 0.3f)
+                                )
                             )
                         )
-                    )
-            )
+                )
 
-            Text(
-                text = "Memulai Aplikasi...",
-                color = Color.White.copy(alpha = 0.7f),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.alpha(sloganAlpha.value)
-            )
+                Text(
+                    text = "Memulai Aplikasi...",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
 
+        // Background effects
         Box(
             modifier = Modifier
                 .fillMaxSize()
