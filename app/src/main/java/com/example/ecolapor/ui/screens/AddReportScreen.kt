@@ -42,8 +42,7 @@ import java.io.File
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddReportScreen(
-    navController: NavController,
-    homeViewModel: com.example.ecolapor.ui.HomeViewModel? = null
+    navController: NavController
 ) {
     val context = LocalContext.current
     val viewModel: ReportViewModel = viewModel(
@@ -83,7 +82,13 @@ fun AddReportScreen(
         }
     }
 
+    // GABUNGAN: Initialization - reset form & request location permission
     LaunchedEffect(Unit) {
+        // PERBAIKAN 1: Reset form saat screen pertama kali dibuka
+        android.util.Log.d("AddReportScreen", "Screen initialized - resetting form")
+        viewModel.resetState()
+        
+        // PERBAIKAN 2: Request location permission
         val hasFineLocation = ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.ACCESS_FINE_LOCATION
@@ -153,16 +158,43 @@ fun AddReportScreen(
         }
     }
 
+    // PENTING: Dapatkan homeViewModel dari backstack dengan cara yang benar
+    val homeViewModel: com.example.ecolapor.ui.HomeViewModel? = navController.previousBackStackEntry?.let { backStackEntry ->
+        viewModel(
+            viewModelStoreOwner = backStackEntry,
+            factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+                override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                    @Suppress("UNCHECKED_CAST")
+                    return com.example.ecolapor.ui.HomeViewModel(context.applicationContext as android.app.Application) as T
+                }
+            }
+        )
+    }
+
     val uiState = viewModel.uiState
     LaunchedEffect(uiState) {
         when (uiState) {
             is ReportState.Success -> {
-                Toast.makeText(context, "Berhasil!", Toast.LENGTH_LONG).show()
-                homeViewModel?.refreshReports()
+                android.util.Log.d("AddReportScreen", "✅ Report submitted successfully, navigating back to home")
+                
+                // PERBAIKAN 1: Refresh HomeViewModel dulu (agar data siap saat kembali)
+                homeViewModel?.let { hvm ->
+                    android.util.Log.d("AddReportScreen", "Triggering manual refresh on HomeViewModel")
+                    hvm.refreshReports()
+                }
+                
+                // PERBAIKAN 2: Reset ViewModel state
                 viewModel.resetState()
+                
+                // PERBAIKAN 3: Show success message
+                Toast.makeText(context, "Berhasil!", Toast.LENGTH_SHORT).show()
+                
+                // PERBAIKAN 4: Navigate back immediately - form akan ter-reset otomatis saat dibuka lagi
+                android.util.Log.d("AddReportScreen", "Executing popBackStack")
                 navController.popBackStack()
             }
             is ReportState.Error -> {
+                android.util.Log.e("AddReportScreen", "❌ Error: ${uiState.message}")
                 Toast.makeText(context, uiState.message, Toast.LENGTH_LONG).show()
                 viewModel.resetState()
             }

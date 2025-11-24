@@ -32,47 +32,69 @@ class ReportViewModel(application: Application) : AndroidViewModel(application) 
             return
         }
 
+        android.util.Log.d("ReportViewModel", "Starting submitReport - isDraft: $isDraft")
         uiState = ReportState.Loading
 
         viewModelScope.launch {
-            var imageUrl = ""
+            try {
+                var imageUrl = ""
 
-            // Upload image if provided
-            if (imageUri != null) {
-                val uploadResult = repository.uploadImage(imageUri)
+                // Upload image if provided
+                if (imageUri != null) {
+                    android.util.Log.d("ReportViewModel", "Uploading image...")
+                    val uploadResult = repository.uploadImage(imageUri)
 
-                if (uploadResult.isSuccess) {
-                    imageUrl = uploadResult.getOrNull() ?: ""
-                } else {
-                    uiState = ReportState.Error("Gagal upload foto: ${uploadResult.exceptionOrNull()?.message}")
-                    return@launch
+                    if (uploadResult.isSuccess) {
+                        imageUrl = uploadResult.getOrNull() ?: ""
+                        android.util.Log.d("ReportViewModel", "Image uploaded successfully: $imageUrl")
+                    } else {
+                        val errorMsg = uploadResult.exceptionOrNull()?.message ?: "Unknown error"
+                        android.util.Log.e("ReportViewModel", "Failed to upload image: $errorMsg")
+                        uiState = ReportState.Error("Gagal upload foto: $errorMsg")
+                        return@launch
+                    }
                 }
-            }
 
-            val newReport = Report(
-                category = category,
-                description = description,
-                imageUrl = imageUrl,
-                location = location ?: GeoPoint(0.0, 0.0),
-                timestamp = Timestamp.now(),
-                status = if (isDraft) "Tersimpan" else "Terkirim"
-            )
-
-            // Save as draft or send to server
-            val result = if (isDraft) {
-                repository.saveDraftReport(newReport)
-            } else {
-                repository.addReport(newReport)
-            }
-
-            if (result.isSuccess) {
-                uiState = ReportState.Success
-                onSuccess() // Callback untuk refresh
-            } else {
-                uiState = ReportState.Error(
-                    if (isDraft) "Gagal menyimpan draft"
-                    else "Gagal mengirim laporan"
+                val newReport = Report(
+                    category = category,
+                    description = description,
+                    imageUrl = imageUrl,
+                    location = location ?: GeoPoint(0.0, 0.0),
+                    timestamp = Timestamp.now(),
+                    status = if (isDraft) "Tersimpan" else "Terkirim"
                 )
+
+                android.util.Log.d("ReportViewModel", "Saving report - isDraft: $isDraft")
+
+                // Save as draft or send to server
+                val result = if (isDraft) {
+                    repository.saveDraftReport(newReport)
+                } else {
+                    repository.addReport(newReport)
+                }
+
+                android.util.Log.d("ReportViewModel", "Result: isSuccess=${result.isSuccess}")
+
+                if (result.isSuccess) {
+                    android.util.Log.d("ReportViewModel", "Report saved successfully!")
+                    uiState = ReportState.Success
+                    
+                    // PENTING: Trigger callback SEBELUM navigate
+                    // Ini akan memaksa HomeViewModel untuk refresh
+                    onSuccess()
+                    
+                    android.util.Log.d("ReportViewModel", "onSuccess callback triggered")
+                } else {
+                    val errorMsg = result.exceptionOrNull()?.message ?: "Unknown error"
+                    android.util.Log.e("ReportViewModel", "Failed to save report: $errorMsg")
+                    uiState = ReportState.Error(
+                        if (isDraft) "Gagal menyimpan draft: $errorMsg"
+                        else "Gagal mengirim laporan: $errorMsg"
+                    )
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("ReportViewModel", "Exception in submitReport: ${e.message}", e)
+                uiState = ReportState.Error("Terjadi kesalahan: ${e.message}")
             }
         }
     }

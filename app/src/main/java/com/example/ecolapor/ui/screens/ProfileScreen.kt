@@ -45,8 +45,7 @@ fun ProfileScreen(
     val userName = currentUser?.displayName ?: "User"
     val userEmail = currentUser?.email ?: "user@example.com"
 
-    var isDarkMode by remember { mutableStateOf(ThemeManager.isDarkMode.value) }
-
+    var isDarkMode by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
@@ -289,16 +288,17 @@ fun ProfileScreen(
                     ProfileMenuItem(
                         icon = if (isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode,
                         title = "Mode Gelap",
-                        subtitle = if (isDarkMode) "Aktif" else "Nonaktif",
+                        subtitle = "Ubah tampilan aplikasi menjadi gelap",
                         iconTint = Color(0xFF9C27B0),
                         trailing = {
                             Switch(
                                 checked = isDarkMode,
-                                onCheckedChange = {
-                                    scope.launch {
-                                        ThemeManager.toggleDarkMode(context)
-                                        isDarkMode = !isDarkMode
-                                    }
+                                onCheckedChange = { newValue ->
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "Fitur coming soon!",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
                                 },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = Color(0xFF9C27B0),
@@ -322,26 +322,8 @@ fun ProfileScreen(
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
                     }
-                }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = surfaceColor),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                    Text(
-                        "Zona Bahaya",
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.Gray
-                    )
+                    Divider(modifier = Modifier.padding(horizontal = 16.dp))
 
                     ProfileMenuItem(
                         icon = Icons.Default.ExitToApp,

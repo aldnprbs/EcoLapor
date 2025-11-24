@@ -74,11 +74,13 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
     val pullRefreshState = rememberPullRefreshState(
         refreshing = isRefreshing,
         onRefresh = {
+            android.util.Log.d("HomeScreen", "Pull-to-refresh triggered")
             isRefreshing = true
             viewModel.refreshReports()
             CoroutineScope(Dispatchers.Main).launch {
-                delay(1000)
+                delay(1500) // Increase delay to give Firestore time to sync
                 isRefreshing = false
+                android.util.Log.d("HomeScreen", "Pull-to-refresh completed")
             }
         }
     )

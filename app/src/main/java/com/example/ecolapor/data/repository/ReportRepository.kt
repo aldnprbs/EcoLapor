@@ -18,6 +18,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeout
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -180,16 +181,57 @@ class ReportRepository(private val context: Context? = null) {
 
     suspend fun addReport(report: Report): Result<Boolean> {
         return try {
-            val user = auth.currentUser ?: return Result.failure(Exception("Belum login"))
+            android.util.Log.d("ReportRepository", "addReport called")
+            
+            val user = auth.currentUser
+            if (user == null) {
+                android.util.Log.e("ReportRepository", "User not logged in")
+                return Result.failure(Exception("Belum login"))
+            }
+            
+            android.util.Log.d("ReportRepository", "User ID: ${user.uid}, Name: ${user.displayName}")
+            
             val reportWithUser = report.copy(
                 userId = user.uid,
                 userName = user.displayName ?: "Warga"
             )
-            firestore.collection("reports").add(reportWithUser).await()
-            android.util.Log.d("ReportRepository", "Report added to Firestore successfully")
+            
+            android.util.Log.d("ReportRepository", "Adding report to Firestore...")
+            android.util.Log.d("ReportRepository", "Report data: category=${reportWithUser.category}, status=${reportWithUser.status}")
+            
+            // Add timeout to prevent infinite loading
+            val docRef = withTimeout(30000L) { // 30 seconds timeout
+                firestore.collection("reports").add(reportWithUser).await()
+            }
+            
+            val reportId = docRef.id
+            android.util.Log.d("ReportRepository", "✅ Report added to Firestore with ID: $reportId")
+            
+            // PERBAIKAN: Langsung simpan ke local cache untuk instant UI update
+            if (reportDao != null) {
+                val entity = ReportEntity(
+                    id = reportId,
+                    userId = reportWithUser.userId,
+                    userName = reportWithUser.userName,
+                    category = reportWithUser.category,
+                    description = reportWithUser.description,
+                    imageUrl = reportWithUser.imageUrl,
+                    status = reportWithUser.status,
+                    timestamp = reportWithUser.timestamp?.toDate()?.time ?: System.currentTimeMillis(),
+                    latitude = reportWithUser.location?.latitude ?: 0.0,
+                    longitude = reportWithUser.location?.longitude ?: 0.0
+                )
+                reportDao.insert(entity)
+                android.util.Log.d("ReportRepository", "✅ Report cached locally for instant UI update")
+            }
+            
             Result.success(true)
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            android.util.Log.e("ReportRepository", "❌ Timeout: Request took too long (>30s)")
+            Result.failure(Exception("Koneksi timeout. Periksa internet Anda dan coba lagi."))
         } catch (e: Exception) {
-            android.util.Log.e("ReportRepository", "Failed to add report: ${e.message}", e)
+            android.util.Log.e("ReportRepository", "❌ Failed to add report: ${e.message}", e)
+            android.util.Log.e("ReportRepository", "Exception type: ${e.javaClass.simpleName}")
             Result.failure(e)
         }
     }
@@ -293,6 +335,18 @@ class ReportRepository(private val context: Context? = null) {
             Result.success(true)
         } catch (e: Exception) {
             android.util.Log.e("ReportRepository", "Failed to clear local data: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    // PERBAIKAN: Clear only sent reports cache (keep drafts) untuk sync antar device
+    suspend fun clearSentReportsCache(): Result<Boolean> {
+        return try {
+            reportDao?.clearSentReports()
+            android.util.Log.d("ReportRepository", "✅ Successfully cleared sent reports cache (drafts preserved)")
+            Result.success(true)
+        } catch (e: Exception) {
+            android.util.Log.e("ReportRepository", "❌ Failed to clear sent reports cache: ${e.message}", e)
             Result.failure(e)
         }
     }

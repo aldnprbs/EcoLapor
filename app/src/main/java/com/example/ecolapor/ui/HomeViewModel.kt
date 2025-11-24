@@ -20,14 +20,34 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val reports: StateFlow<List<Report>> get() = _reports
 
     init {
-        fetchReports()
+        android.util.Log.d("HomeViewModel", "🚀 HomeViewModel initialized, clearing cache and fetching fresh data")
+        // PERBAIKAN: Clear local cache dulu untuk force sync dari Firestore
+        clearLocalCacheAndFetch()
+    }
+
+    private fun clearLocalCacheAndFetch() {
+        viewModelScope.launch {
+            try {
+                // Clear only sent reports cache (keep drafts)
+                android.util.Log.d("HomeViewModel", "🗑️ Clearing local cache for fresh sync")
+                reportRepository.clearSentReportsCache()
+                // Fetch fresh data
+                fetchReports()
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Error clearing cache: ${e.message}", e)
+                // Still fetch even if clear fails
+                fetchReports()
+            }
+        }
     }
 
     private fun fetchReports() {
+        android.util.Log.d("HomeViewModel", "Setting up report fetching with realtime listener")
         loadAllReports()
 
         reportRepository.getReportsRealtime(
             onDataChanged = { newReports ->
+                android.util.Log.d("HomeViewModel", "Firestore data changed, reloading all reports")
                 loadAllReports()
             },
             onError = { e ->

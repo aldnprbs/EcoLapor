@@ -245,44 +245,51 @@ fun LoginScreen(navController: NavController, viewModel: AuthViewModel = viewMod
 
                         Spacer(modifier = Modifier.height(32.dp))
 
-                        Button(
-                            onClick = {
-                                if (email.isBlank() || password.isBlank()) {
-                                    Toast.makeText(context, "Harap isi semua field!", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    viewModel.login(email, password)
-                                }
-                            },
-                            enabled = state !is AuthState.Loading,
+                        // PERBAIKAN: Wrap button dengan Box untuk shadow yang lebih baik
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(56.dp)
-                                .shadow(
-                                    elevation = 8.dp,
-                                    shape = RoundedCornerShape(16.dp),
-                                    clip = false
-                                ),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = primaryColor
-                            )
                         ) {
-                            if (state is AuthState.Loading) {
-                                CircularProgressIndicator(
-                                    color = Color.White,
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 3.dp
+                            Button(
+                                onClick = {
+                                    if (email.isBlank() || password.isBlank()) {
+                                        Toast.makeText(context, "Harap isi semua field!", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        viewModel.login(email, password)
+                                    }
+                                },
+                                enabled = state !is AuthState.Loading,
+                                modifier = Modifier
+                                    .fillMaxSize(),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = primaryColor,
+                                    contentColor = Color.White
+                                ),
+                                elevation = ButtonDefaults.buttonElevation(
+                                    defaultElevation = 6.dp,
+                                    pressedElevation = 8.dp,
+                                    disabledElevation = 0.dp
                                 )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text("Masuk...", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                            } else {
-                                Icon(
-                                    Icons.Default.Login,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text("MASUK", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            ) {
+                                if (state is AuthState.Loading) {
+                                    CircularProgressIndicator(
+                                        color = Color.White,
+                                        modifier = Modifier.size(24.dp),
+                                        strokeWidth = 3.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text("Masuk...", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                } else {
+                                    Icon(
+                                        Icons.Default.Login,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text("MASUK", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
 
