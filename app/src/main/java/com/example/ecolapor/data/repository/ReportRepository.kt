@@ -356,6 +356,41 @@ class ReportRepository(private val context: Context? = null) {
         }
     }
 
+    // PERBAIKAN: Fungsi baru untuk get drafts only (tidak termasuk sent reports)
+    suspend fun getDraftsFromLocal(): List<Report> {
+        val drafts = mutableListOf<Report>()
+        val currentUser = auth.currentUser
+
+        if (currentUser == null) {
+            android.util.Log.w("ReportRepository", "User not logged in")
+            return drafts
+        }
+
+        val currentUserId = currentUser.uid
+
+        if (reportDao != null) {
+            val draftEntities = reportDao.getDraftReports()
+                .filter { it.userId == currentUserId } // Filter by current user
+                .map { entity ->
+                    Report(
+                        id = entity.id,
+                        userId = entity.userId,
+                        userName = entity.userName,
+                        category = entity.category,
+                        description = entity.description,
+                        imageUrl = entity.imageUrl,
+                        status = entity.status,
+                        timestamp = Timestamp(Date(entity.timestamp)),
+                        location = com.google.firebase.firestore.GeoPoint(entity.latitude, entity.longitude)
+                    )
+                }
+            drafts.addAll(draftEntities)
+            android.util.Log.d("ReportRepository", "📦 Loaded ${draftEntities.size} drafts from local DB for user $currentUserId")
+        }
+
+        return drafts
+    }
+
     suspend fun getAllReportsIncludingDrafts(): List<Report> {
         val reports = mutableListOf<Report>()
         val currentUser = auth.currentUser
@@ -407,38 +442,9 @@ class ReportRepository(private val context: Context? = null) {
         android.util.Log.d("ReportRepository", "User Name: ${currentUser.displayName}")
         android.util.Log.d("ReportRepository", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-        if (reportDao != null) {
-            CoroutineScope(Dispatchers.IO).launch {
-                val cachedData = reportDao.getAllReports()
-                    .filter { it.userId == currentUserId } // Filter by current user
-                    .map { entity ->
-                        Report(
-                            id = entity.id,
-                            userId = entity.userId,
-                            userName = entity.userName,
-                            category = entity.category,
-                            description = entity.description,
-                            imageUrl = entity.imageUrl,
-                            status = entity.status,
-                            timestamp = Timestamp(Date(entity.timestamp)),
-                            location = com.google.firebase.firestore.GeoPoint(entity.latitude, entity.longitude)
-                        )
-                    }
-                // PERBAIKAN: SELALU kirim data cache (bahkan kalau kosong) untuk init UI
-                CoroutineScope(Dispatchers.Main).launch {
-                    onDataChanged(cachedData)
-                    if (cachedData.isNotEmpty()) {
-                        android.util.Log.d("ReportRepository", "📦 Sent cached data to UI: ${cachedData.size} reports")
-                    } else {
-                        android.util.Log.d("ReportRepository", "📦 No cached data, sent empty list. Waiting for Firestore...")
-                    }
-                }
-            }
-        } else {
-            // PERBAIKAN: Jika tidak ada DAO, kirim empty list dulu
-            android.util.Log.d("ReportRepository", "⚠️ No local database, waiting for Firestore...")
-            onDataChanged(emptyList())
-        }
+        // PERBAIKAN: JANGAN kirim cache dulu, tunggu Firestore data
+        // Cache akan di-load di HomeViewModel saat combine dengan Firestore data
+        android.util.Log.d("ReportRepository", "⏳ Waiting for Firestore data... (cache will be loaded later)")
 
         android.util.Log.d("ReportRepository", "🔍 Firestore Query: collection('reports').whereEqualTo('userId', '$currentUserId')")
         android.util.Log.d("ReportRepository", "🎧 Attaching Firestore snapshot listener...")

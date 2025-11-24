@@ -27,13 +27,31 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun fetchReports() {
         android.util.Log.d("HomeViewModel", "Setting up report fetching with realtime listener")
-        // PERBAIKAN: JANGAN load dulu, tunggu Firestore listener kirim data
-        // loadAllReports() // <-- INI YANG BIKIN LIST KOSONG!
-
+        
         reportRepository.getReportsRealtime(
-            onDataChanged = { newReports ->
-                android.util.Log.d("HomeViewModel", "🔔 Firestore data changed, reloading all reports")
-                loadAllReports()
+            onDataChanged = { firestoreReports ->
+                android.util.Log.d("HomeViewModel", "🔔 Firestore data changed: ${firestoreReports.size} reports")
+                // PERBAIKAN: Langsung set data dari Firestore, jangan load ulang dari getAllReportsIncludingDrafts
+                // karena bisa overwrite dengan data cache yang kosong
+                viewModelScope.launch {
+                    try {
+                        // Get drafts dari local DB
+                        val localDrafts = reportRepository.getDraftsFromLocal()
+                        android.util.Log.d("HomeViewModel", "📦 Local drafts: ${localDrafts.size}")
+                        
+                        // Combine Firestore reports + local drafts
+                        val allReports = (firestoreReports + localDrafts).distinctBy { it.id }
+                        
+                        // Sort by timestamp
+                        val sortedReports = allReports.sortedByDescending { it.timestamp?.toDate()?.time ?: 0 }
+                        
+                        // Update UI
+                        _reports.value = sortedReports
+                        android.util.Log.d("HomeViewModel", "✅ Updated UI with ${sortedReports.size} reports (${firestoreReports.size} from Firestore + ${localDrafts.size} drafts)")
+                    } catch (e: Exception) {
+                        android.util.Log.e("HomeViewModel", "❌ Error combining reports: ${e.message}", e)
+                    }
+                }
             },
             onError = { e ->
                 android.util.Log.e("HomeViewModel", "❌ Firestore error: ${e.message}", e)
@@ -79,15 +97,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 reportRepository.clearSentReportsCache()
                 
                 // Small delay untuk memastikan clear selesai
-                kotlinx.coroutines.delay(200)
+                kotlinx.coroutines.delay(300)
                 
-                // Load fresh data (akan trigger Firestore fetch)
-                android.util.Log.d("HomeViewModel", "📥 Loading fresh data...")
-                loadAllReports()
+                // PERBAIKAN: Firestore listener akan otomatis trigger update
+                // Tidak perlu manual load karena akan overwrite dengan cache kosong
+                android.util.Log.d("HomeViewModel", "✅ Cache cleared, waiting for Firestore listener to update...")
             } catch (e: Exception) {
                 android.util.Log.e("HomeViewModel", "❌ Error during refresh: ${e.message}", e)
-                // Still try to load
-                loadAllReports()
             }
         }
     }
