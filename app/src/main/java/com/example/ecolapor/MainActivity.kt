@@ -73,72 +73,55 @@ class MainActivity : ComponentActivity() {
                         SplashScreen(navController)
                     }
 
-                    // Welcome Screen - Elegant fade dengan slight scale
+                    // Welcome Screen - Simple fade
                     composable(
                         Screen.Welcome.route,
                         enterTransition = {
-                            fadeIn(animationSpec = tween(600)) +
-                                    scaleIn(
-                                        animationSpec = tween(600),
-                                        initialScale = 0.95f
-                                    )
+                            fadeIn(animationSpec = tween(300))
                         },
                         exitTransition = {
-                            fadeOut(animationSpec = tween(400)) +
-                                    scaleOut(
-                                        animationSpec = tween(400),
-                                        targetScale = 1.05f
-                                    )
+                            fadeOut(animationSpec = tween(300))
                         }
                     ) {
                         WelcomeScreen(navController)
                     }
 
-                    // Auth Screens (Login & Register) - Smooth horizontal slide dengan fade
+// Login Screen - Simple fade
                     composable(
                         Screen.Login.route,
                         enterTransition = {
-                            slideInHorizontally(
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessMedium
-                                ),
-                                initialOffsetX = { fullWidth -> fullWidth }
-                            ) + fadeIn(animationSpec = tween(300))
+                            fadeIn(animationSpec = tween(300))
                         },
                         exitTransition = {
-                            slideOutHorizontally(
-                                animationSpec = tween(400),
-                                targetOffsetX = { fullWidth -> -fullWidth }
-                            ) + fadeOut(animationSpec = tween(300))
-                        },
-                        popEnterTransition = {
-                            slideInHorizontally(
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessMedium
-                                ),
-                                initialOffsetX = { fullWidth -> -fullWidth }
-                            ) + fadeIn(animationSpec = tween(300))
-                        },
-                        popExitTransition = {
-                            slideOutHorizontally(
-                                animationSpec = tween(400),
-                                targetOffsetX = { fullWidth -> fullWidth }
-                            ) + fadeOut(animationSpec = tween(300))
+                            fadeOut(animationSpec = tween(300))
                         }
                     ) {
                         LoginScreen(navController)
                     }
 
+// Register Screen - Simple fade
                     composable(
                         Screen.Register.route,
                         enterTransition = {
+                            fadeIn(animationSpec = tween(300))
+                        },
+                        exitTransition = {
+                            fadeOut(animationSpec = tween(300))
+                        }
+                    ) {
+                        RegisterScreen(navController)
+                    }
+
+                    composable(Screen.Home.route) {
+                        HomeScreen(navController)
+                    }
+
+                    // Add Report Screen - Slide dari kanan saat masuk, ke kiri saat keluar
+                    composable(
+                        Screen.AddReport.route,
+                        enterTransition = {
                             slideInHorizontally(
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessMedium
-                                ),
+                                animationSpec = tween(400),
                                 initialOffsetX = { fullWidth -> fullWidth }
                             ) + fadeIn(animationSpec = tween(300))
                         },
@@ -150,10 +133,7 @@ class MainActivity : ComponentActivity() {
                         },
                         popEnterTransition = {
                             slideInHorizontally(
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessMedium
-                                ),
+                                animationSpec = tween(400),
                                 initialOffsetX = { fullWidth -> -fullWidth }
                             ) + fadeIn(animationSpec = tween(300))
                         },
@@ -161,115 +141,39 @@ class MainActivity : ComponentActivity() {
                             slideOutHorizontally(
                                 animationSpec = tween(400),
                                 targetOffsetX = { fullWidth -> fullWidth }
-                            ) + fadeOut(animationSpec = tween(300))
-                        }
-                    ) {
-                        RegisterScreen(navController)
-                    }
-
-                    // Home Screen - Hero entrance dari bawah dengan scale
-                    composable(
-                        Screen.Home.route,
-                        enterTransition = {
-                            slideInVertically(
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessMediumLow
-                                ),
-                                initialOffsetY = { fullHeight -> (fullHeight * 0.8).toInt() }
-                            ) + fadeIn(animationSpec = tween(500)) +
-                                    scaleIn(
-                                        animationSpec = tween(600),
-                                        initialScale = 0.9f
-                                    )
-                        },
-                        exitTransition = {
-                            slideOutVertically(
-                                animationSpec = tween(450),
-                                targetOffsetY = { fullHeight -> -fullHeight }
-                            ) + fadeOut(animationSpec = tween(400))
-                        },
-                        popEnterTransition = {
-                            slideInVertically(
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessMediumLow
-                                ),
-                                initialOffsetY = { fullHeight -> -fullHeight }
-                            ) + fadeIn(animationSpec = tween(400))
-                        },
-                        popExitTransition = {
-                            slideOutVertically(
-                                animationSpec = tween(450),
-                                targetOffsetY = { fullHeight -> (fullHeight * 0.8).toInt() }
-                            ) + fadeOut(animationSpec = tween(400))
-                        }
-                    ) {
-                        HomeScreen(navController)
-                    }
-
-                    // Add Report Screen - Modal slide dari bawah
-                    composable(
-                        Screen.AddReport.route,
-                        enterTransition = {
-                            slideInVertically(
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioLowBouncy,
-                                    stiffness = Spring.StiffnessLow
-                                ),
-                                initialOffsetY = { fullHeight -> fullHeight }
-                            ) + fadeIn(animationSpec = tween(400))
-                        },
-                        exitTransition = {
-                            slideOutVertically(
-                                animationSpec = tween(350),
-                                targetOffsetY = { fullHeight -> fullHeight }
-                            ) + fadeOut(animationSpec = tween(300))
-                        },
-                        popEnterTransition = {
-                            fadeIn(animationSpec = tween(300))
-                        },
-                        popExitTransition = {
-                            slideOutVertically(
-                                animationSpec = tween(350),
-                                targetOffsetY = { fullHeight -> fullHeight }
                             ) + fadeOut(animationSpec = tween(300))
                         }
                     ) {
                         AddReportScreen(navController)
                     }
 
-                    // Profile Screen - Elegant slide dari kanan
+
+                    // Profile Screen - Slide dari kanan saat masuk, ke kiri saat keluar
                     composable(
                         Screen.Profile.route,
                         enterTransition = {
                             slideInHorizontally(
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = Spring.StiffnessMedium
-                                ),
-                                initialOffsetX = { fullWidth -> (fullWidth * 0.3).toInt() }
-                            ) + fadeIn(animationSpec = tween(500))
+                                animationSpec = tween(400),
+                                initialOffsetX = { fullWidth -> fullWidth }
+                            ) + fadeIn(animationSpec = tween(300))
                         },
                         exitTransition = {
                             slideOutHorizontally(
                                 animationSpec = tween(400),
-                                targetOffsetX = { fullWidth -> (fullWidth * 0.3).toInt() }
-                            ) + fadeOut(animationSpec = tween(350))
+                                targetOffsetX = { fullWidth -> -fullWidth }
+                            ) + fadeOut(animationSpec = tween(300))
                         },
                         popEnterTransition = {
-                            fadeIn(animationSpec = tween(300)) +
-                                    slideInHorizontally(
-                                        animationSpec = tween(400),
-                                        initialOffsetX = { -it / 3 }
-                                    )
+                            slideInHorizontally(
+                                animationSpec = tween(400),
+                                initialOffsetX = { fullWidth -> -fullWidth }
+                            ) + fadeIn(animationSpec = tween(300))
                         },
                         popExitTransition = {
-                            fadeOut(animationSpec = tween(300)) +
-                                    slideOutHorizontally(
-                                        animationSpec = tween(400),
-                                        targetOffsetX = { it / 3 }
-                                    )
+                            slideOutHorizontally(
+                                animationSpec = tween(400),
+                                targetOffsetX = { fullWidth -> fullWidth }
+                            ) + fadeOut(animationSpec = tween(300))
                         }
                     ) {
                         ProfileScreen(navController)
