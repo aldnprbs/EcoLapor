@@ -6,16 +6,20 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ecolapor.data.repository.AuthRepository
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class AuthViewModel : ViewModel() {
     private val repository = AuthRepository()
+    private val firestore = FirebaseFirestore.getInstance()
+    private val auth = FirebaseAuth.getInstance()
 
     var authState by mutableStateOf<AuthState>(AuthState.Idle)
         private set
 
-    // Fungsi Login
     fun login(email: String, pass: String) {
         if (email.isBlank() || pass.isBlank()) {
             authState = AuthState.Error("Email dan Password tidak boleh kosong")
@@ -33,7 +37,6 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    // Fungsi Register
     fun register(name: String, email: String, pass: String) {
         if (name.isBlank() || email.isBlank() || pass.isBlank()) {
             authState = AuthState.Error("Semua data harus diisi")
@@ -51,13 +54,50 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    // Reset status agar tidak stuck
+    fun logout() {
+        repository.logout()
+        authState = AuthState.Idle
+    }
+
+    fun deleteAccount(onSuccess: () -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val user = auth.currentUser
+                if (user == null) {
+                    onError("User tidak ditemukan")
+                    return@launch
+                }
+
+                val userId = user.uid
+
+                try {
+                    val reportsSnapshot = firestore.collection("reports")
+                        .whereEqualTo("userId", userId)
+                        .get()
+                        .await()
+
+                    for (document in reportsSnapshot.documents) {
+                        document.reference.delete().await()
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("AuthViewModel", "Failed to delete reports: ${e.message}")
+                }
+
+                user.delete().await()
+                authState = AuthState.Idle
+                onSuccess()
+
+            } catch (e: Exception) {
+                onError(e.message ?: "Gagal menghapus akun")
+            }
+        }
+    }
+
     fun resetState() {
         authState = AuthState.Idle
     }
 }
 
-// Status-status yang mungkin terjadi
 sealed class AuthState {
     object Idle : AuthState()
     object Loading : AuthState()

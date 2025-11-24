@@ -20,8 +20,8 @@ abstract class EcoDatabase : RoomDatabase() {
                     EcoDatabase::class.java,
                     "eco_database"
                 )
-                .fallbackToDestructiveMigration() // Hapus data lama jika schema berubah
-                .build()
+                    .fallbackToDestructiveMigration() // Hapus data lama jika schema berubah
+                    .build()
                 INSTANCE = instance
                 instance
             }

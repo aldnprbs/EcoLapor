@@ -66,7 +66,7 @@ fun AddReportScreen(
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var showImageSourceDialog by remember { mutableStateOf(false) }
     var currentLocation by remember { mutableStateOf<GeoPoint?>(null) }
-    
+
     // Location permission launcher
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -92,19 +92,19 @@ fun AddReportScreen(
             Toast.makeText(context, "Izin lokasi ditolak", Toast.LENGTH_SHORT).show()
         }
     }
-    
+
     // Get current location
     LaunchedEffect(Unit) {
         val hasFineLocation = ContextCompat.checkSelfPermission(
-            context, 
+            context,
             Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
-        
+
         val hasCoarseLocation = ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.ACCESS_COARSE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
-        
+
         if (hasFineLocation || hasCoarseLocation) {
             // Already have permission, get location
             val fusedLocationClient = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(context)

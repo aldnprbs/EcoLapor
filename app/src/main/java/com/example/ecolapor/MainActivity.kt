@@ -1,11 +1,13 @@
 package com.example.ecolapor
 
 import android.os.Bundle
-import android.view.View
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -13,30 +15,28 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.ecolapor.ui.Screen
-import com.example.ecolapor.ui.screens.AddReportScreen
-import com.example.ecolapor.ui.screens.HomeScreen
-import com.example.ecolapor.ui.screens.LoginScreen
-import com.example.ecolapor.ui.screens.RegisterScreen
-import com.example.ecolapor.ui.screens.SplashScreen
-import com.example.ecolapor.ui.screens.WelcomeScreen
+import com.example.ecolapor.ui.screens.*
 import com.example.ecolapor.ui.theme.EcoLaporTheme
+import com.example.ecolapor.ui.theme.ThemeManager
 import com.google.firebase.auth.FirebaseAuth
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        // Sembunyikan navigation bar dan status bar
+
         hideSystemUI()
-        
+
         enableEdgeToEdge()
         setContent {
-            EcoLaporTheme {
+            val context = LocalContext.current
+            val isDarkMode by ThemeManager.getDarkModeFlow(context)
+                .collectAsState(initial = false)
+
+            ThemeManager.isDarkMode.value = isDarkMode
+
+            EcoLaporTheme(darkTheme = isDarkMode) {
                 val navController = rememberNavController()
 
-                // CEK STATUS LOGIN
-                // Jika user tidak null (artinya sudah login), langsung ke Home
-                // Jika null, mulai dari Splash seperti biasa
                 val startDest = if (FirebaseAuth.getInstance().currentUser != null) {
                     Screen.Home.route
                 } else {
@@ -45,7 +45,7 @@ class MainActivity : ComponentActivity() {
 
                 NavHost(
                     navController = navController,
-                    startDestination = startDest // Gunakan variabel dinamis ini
+                    startDestination = startDest
                 ) {
                     composable(Screen.Splash.route) {
                         SplashScreen(navController)
@@ -65,29 +65,28 @@ class MainActivity : ComponentActivity() {
                     composable(Screen.AddReport.route) {
                         AddReportScreen(navController)
                     }
+                    composable(Screen.Profile.route) {
+                        ProfileScreen(navController)
+                    }
                 }
             }
         }
     }
-    
+
     private fun hideSystemUI() {
-        // Get window insets controller
         val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
-        
-        // Configure behavior
-        windowInsetsController.systemBarsBehavior = 
+
+        windowInsetsController.systemBarsBehavior =
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        
-        // Hide system bars (navigation and status bar)
+
         windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
-        
-        // Make sure status bar is translucent
+
         window.setFlags(
             WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
         )
     }
-    
+
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) {

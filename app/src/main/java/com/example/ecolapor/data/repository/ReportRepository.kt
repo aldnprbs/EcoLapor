@@ -47,8 +47,8 @@ class ReportRepository(private val context: Context? = null) {
 
             // Create temporary file in cache
             val tempFile = File.createTempFile(
-                "upload_${System.currentTimeMillis()}", 
-                ".jpg", 
+                "upload_${System.currentTimeMillis()}",
+                ".jpg",
                 context.cacheDir
             )
 
@@ -75,30 +75,30 @@ class ReportRepository(private val context: Context? = null) {
         return try {
             // Decode image
             val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return null
-            
+
             // Fix orientation based on EXIF data
             val exif = ExifInterface(file.absolutePath)
             val orientation = exif.getAttributeInt(
-                ExifInterface.TAG_ORIENTATION, 
+                ExifInterface.TAG_ORIENTATION,
                 ExifInterface.ORIENTATION_NORMAL
             )
-            
+
             val rotatedBitmap = when (orientation) {
                 ExifInterface.ORIENTATION_ROTATE_90 -> rotateBitmap(bitmap, 90f)
                 ExifInterface.ORIENTATION_ROTATE_180 -> rotateBitmap(bitmap, 180f)
                 ExifInterface.ORIENTATION_ROTATE_270 -> rotateBitmap(bitmap, 270f)
                 else -> bitmap
             }
-            
+
             // Compress to reduce size
             val outputStream = ByteArrayOutputStream()
             rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
-            
+
             if (rotatedBitmap != bitmap) {
                 rotatedBitmap.recycle()
             }
             bitmap.recycle()
-            
+
             outputStream.toByteArray()
         } catch (e: Exception) {
             null
@@ -124,7 +124,7 @@ class ReportRepository(private val context: Context? = null) {
                 val errorMsg = fileResult.exceptionOrNull()?.message ?: "Unknown error"
                 return Result.failure(Exception("Copy failed: $errorMsg"))
             }
-            
+
             tempFile = fileResult.getOrNull()
             if (tempFile == null || !tempFile.exists()) {
                 return Result.failure(Exception("Temp file not created"))
@@ -135,36 +135,36 @@ class ReportRepository(private val context: Context? = null) {
             if (compressedData == null || compressedData.isEmpty()) {
                 return Result.failure(Exception("Image compression failed - file may be corrupted"))
             }
-            
+
             // Step 3: Try Firebase Storage first, fallback to Base64 if Storage not enabled
             try {
                 val filename = "${UUID.randomUUID()}.jpg"
                 val ref = storage.reference.child("report_images/$filename")
-                
+
                 android.util.Log.d("ReportRepository", "Attempting Firebase Storage upload...")
                 val uploadTask = ref.putBytes(compressedData).await()
                 val downloadUrl = ref.downloadUrl.await()
-                
+
                 android.util.Log.d("ReportRepository", "Firebase Storage upload successful!")
                 return Result.success(downloadUrl.toString())
-                
+
             } catch (storageError: Exception) {
                 android.util.Log.w("ReportRepository", "Firebase Storage failed: ${storageError.message}")
                 android.util.Log.d("ReportRepository", "Falling back to Base64 encoding...")
-                
+
                 // Fallback: Convert to Base64 string (works without Firebase Storage)
                 val base64String = android.util.Base64.encodeToString(
-                    compressedData, 
+                    compressedData,
                     android.util.Base64.DEFAULT
                 )
-                
+
                 // Return as data URL (can be used directly in Image components)
                 val dataUrl = "data:image/jpeg;base64,$base64String"
-                
+
                 android.util.Log.d("ReportRepository", "Base64 encoding successful (${base64String.length} chars)")
                 return Result.success(dataUrl)
             }
-            
+
         } catch (e: Exception) {
             android.util.Log.e("ReportRepository", "Upload failed: ${e.message}", e)
             Result.failure(Exception("Upload failed: ${e.message}"))
@@ -186,21 +186,23 @@ class ReportRepository(private val context: Context? = null) {
                 userName = user.displayName ?: "Warga"
             )
             firestore.collection("reports").add(reportWithUser).await()
+            android.util.Log.d("ReportRepository", "Report added to Firestore successfully")
             Result.success(true)
         } catch (e: Exception) {
+            android.util.Log.e("ReportRepository", "Failed to add report: ${e.message}", e)
             Result.failure(e)
         }
     }
-    
+
     suspend fun saveDraftReport(report: Report): Result<Boolean> {
         return try {
             if (context == null) {
                 return Result.failure(Exception("Context is null"))
             }
-            
+
             val user = auth.currentUser ?: return Result.failure(Exception("Belum login"))
             val draftId = UUID.randomUUID().toString()
-            
+
             val draftEntity = ReportEntity(
                 id = draftId,
                 userId = user.uid,
@@ -213,14 +215,16 @@ class ReportRepository(private val context: Context? = null) {
                 latitude = report.location?.latitude ?: 0.0,
                 longitude = report.location?.longitude ?: 0.0
             )
-            
+
             reportDao?.insert(draftEntity)
+            android.util.Log.d("ReportRepository", "Draft saved to local DB: $draftId")
             Result.success(true)
         } catch (e: Exception) {
+            android.util.Log.e("ReportRepository", "Failed to save draft: ${e.message}", e)
             Result.failure(e)
         }
     }
-    
+
     suspend fun sendDraftReport(reportEntity: ReportEntity): Result<Boolean> {
         return try {
             // Upload to Firestore
@@ -235,43 +239,56 @@ class ReportRepository(private val context: Context? = null) {
                 timestamp = com.google.firebase.Timestamp(Date(reportEntity.timestamp)),
                 location = com.google.firebase.firestore.GeoPoint(reportEntity.latitude, reportEntity.longitude)
             )
-            
+
             firestore.collection("reports").add(report).await()
-            
+            android.util.Log.d("ReportRepository", "Draft sent to Firestore successfully")
+
             // Delete from local after successful upload
             reportDao?.deleteById(reportEntity.id)
-            
+            android.util.Log.d("ReportRepository", "Draft deleted from local DB after sending")
+
             Result.success(true)
         } catch (e: Exception) {
+            android.util.Log.e("ReportRepository", "Failed to send draft: ${e.message}", e)
             Result.failure(e)
         }
     }
-    
+
     suspend fun deleteDraftReport(reportId: String): Result<Boolean> {
         return try {
             reportDao?.deleteById(reportId)
+            android.util.Log.d("ReportRepository", "Successfully deleted draft from local DB: $reportId")
             Result.success(true)
         } catch (e: Exception) {
+            android.util.Log.e("ReportRepository", "Failed to delete draft: ${e.message}", e)
             Result.failure(e)
         }
     }
-    
+
     suspend fun deleteSentReport(reportId: String): Result<Boolean> {
         return try {
-            // Delete from Firestore
+            // PERBAIKAN 1: Hapus dari Firestore
             firestore.collection("reports")
                 .document(reportId)
                 .delete()
                 .await()
+
+            android.util.Log.d("ReportRepository", "Successfully deleted report from Firestore: $reportId")
+
+            // PERBAIKAN 2: Hapus juga dari local cache
+            reportDao?.deleteById(reportId)
+            android.util.Log.d("ReportRepository", "Successfully deleted report from local cache: $reportId")
+
             Result.success(true)
         } catch (e: Exception) {
+            android.util.Log.e("ReportRepository", "Failed to delete sent report: ${e.message}", e)
             Result.failure(e)
         }
     }
-    
+
     suspend fun getAllReportsIncludingDrafts(): List<Report> {
         val reports = mutableListOf<Report>()
-        
+
         // Get ALL reports from local database (both drafts and sent/cached reports)
         if (reportDao != null) {
             val allLocalReports = reportDao.getAllReports().map { entity ->
@@ -288,8 +305,9 @@ class ReportRepository(private val context: Context? = null) {
                 )
             }
             reports.addAll(allLocalReports)
+            android.util.Log.d("ReportRepository", "Loaded ${allLocalReports.size} reports from local DB")
         }
-        
+
         return reports
     }
 
@@ -307,12 +325,15 @@ class ReportRepository(private val context: Context? = null) {
                         imageUrl = entity.imageUrl,
                         status = entity.status,
                         timestamp = Timestamp(Date(entity.timestamp)),
-                        location = com.google.firebase.firestore.GeoPoint(0.0, 0.0)
+                        location = com.google.firebase.firestore.GeoPoint(entity.latitude, entity.longitude)
                     )
                 }
                 // Kirim data offline ke UI
                 if (cachedData.isNotEmpty()) {
-                    CoroutineScope(Dispatchers.Main).launch { onDataChanged(cachedData) }
+                    CoroutineScope(Dispatchers.Main).launch {
+                        onDataChanged(cachedData)
+                        android.util.Log.d("ReportRepository", "Sent cached data to UI: ${cachedData.size} reports")
+                    }
                 }
             }
         }
@@ -321,6 +342,7 @@ class ReportRepository(private val context: Context? = null) {
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
+                    android.util.Log.e("ReportRepository", "Firestore listener error: ${e.message}", e)
                     onError(e)
                     return@addSnapshotListener
                 }
@@ -330,13 +352,14 @@ class ReportRepository(private val context: Context? = null) {
                         report?.copy(id = doc.id)
                     }
 
+                    android.util.Log.d("ReportRepository", "Firestore data received: ${reports.size} reports")
                     onDataChanged(reports)
 
                     if (reportDao != null) {
                         CoroutineScope(Dispatchers.IO).launch {
                             val entities = reports.map { report ->
                                 ReportEntity(
-                                    id = report.id, // Pastikan ID tersimpan (Firestore mungkin butuh DocumentID)
+                                    id = report.id,
                                     userId = report.userId,
                                     userName = report.userName,
                                     category = report.category,
@@ -351,6 +374,7 @@ class ReportRepository(private val context: Context? = null) {
                             // Hanya hapus report yang terkirim, JANGAN hapus draft!
                             reportDao.clearSentReports() // Hapus cache lama (yang terkirim saja)
                             reportDao.insertAll(entities) // Simpan cache baru dari Firestore
+                            android.util.Log.d("ReportRepository", "Updated local cache with ${entities.size} reports from Firestore")
                         }
                     }
                 }

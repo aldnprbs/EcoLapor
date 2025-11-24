@@ -70,7 +70,7 @@ class ReportViewModel(application: Application) : AndroidViewModel(application) 
                 onSuccess() // Callback untuk refresh
             } else {
                 uiState = ReportState.Error(
-                    if (isDraft) "Gagal menyimpan draft" 
+                    if (isDraft) "Gagal menyimpan draft"
                     else "Gagal mengirim laporan"
                 )
             }
