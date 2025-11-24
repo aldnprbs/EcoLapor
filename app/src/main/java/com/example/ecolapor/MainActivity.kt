@@ -37,11 +37,8 @@ class MainActivity : ComponentActivity() {
             EcoLaporTheme(darkTheme = isDarkMode) {
                 val navController = rememberNavController()
 
-                val startDest = if (FirebaseAuth.getInstance().currentUser != null) {
-                    Screen.Home.route
-                } else {
-                    Screen.Splash.route
-                }
+                // Always start with splash screen
+                val startDest = Screen.Splash.route
 
                 NavHost(
                     navController = navController,

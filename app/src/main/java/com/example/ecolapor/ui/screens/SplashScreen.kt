@@ -123,7 +123,16 @@ fun SplashScreen(navController: NavController) {
         }
 
         delay(3500)
-        navController.navigate(Screen.Welcome.route) {
+        
+        // Check if user is already logged in
+        val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+        val destination = if (auth.currentUser != null) {
+            Screen.Home.route
+        } else {
+            Screen.Welcome.route
+        }
+        
+        navController.navigate(destination) {
             popUpTo(Screen.Splash.route) { inclusive = true }
         }
     }

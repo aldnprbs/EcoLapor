@@ -406,10 +406,10 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
 fun WelcomeCard(primaryColor: Color) {
     val infiniteTransition = rememberInfiniteTransition(label = "")
     val shimmer by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1000f,
+        initialValue = -2000f,
+        targetValue = 2000f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 3000, easing = LinearEasing),
+            animation = tween(durationMillis = 4000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = ""
@@ -430,10 +430,12 @@ fun WelcomeCard(primaryColor: Color) {
                         colors = listOf(
                             primaryColor,
                             Color(0xFF1976D2),
+                            Color(0xFF1565C0),
+                            Color(0xFF1976D2),
                             primaryColor
                         ),
-                        startX = shimmer - 1000f,
-                        endX = shimmer
+                        startX = shimmer,
+                        endX = shimmer + 2000f
                     )
                 )
         ) {
@@ -599,11 +601,6 @@ fun StatCard(
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = color
-                )
-                Text(
-                    title,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
                 )
             }
         }
