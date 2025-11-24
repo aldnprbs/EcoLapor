@@ -32,7 +32,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -1003,111 +1002,5 @@ fun EmptyState(hasSearch: Boolean) {
             style = MaterialTheme.typography.bodyMedium,
             color = Color.Gray.copy(alpha = 0.7f)
         )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun HomeScreenPreview() {
-    MaterialTheme {
-        Surface(modifier = Modifier.fillMaxSize()) {
-            // HomeScreen(navController = rememberNavController())
-        }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun WelcomeCardPreview() {
-    MaterialTheme {
-        WelcomeCard(primaryColor = MaterialTheme.colorScheme.primary)
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun PremiumReportCardPreview() {
-    MaterialTheme {
-        val sampleReport = Report(
-            id = "1",
-            category = "Sampah Plastik",
-            description = "Tumpukan sampah plastik di pinggir jalan yang mengganggu pemandangan dan berpotensi menyumbat saluran air.",
-            imageUrl = "",
-            status = "Tersimpan",
-            timestamp = com.google.firebase.Timestamp.now(),
-            location = null
-        )
-
-        PremiumReportCard(
-            report = sampleReport,
-            onClick = {}
-        )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun StatisticsCardsPreview() {
-    MaterialTheme {
-        StatisticsCards(total = 10, saved = 3, sent = 7)
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun SearchBarPreview() {
-    MaterialTheme {
-        var query by remember { mutableStateOf("") }
-        SearchBar(
-            query = query,
-            onQueryChange = { query = it },
-            surfaceColor = MaterialTheme.colorScheme.surface
-        )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun SectionHeaderPreview() {
-    MaterialTheme {
-        SectionHeader(
-            icon = Icons.Default.Drafts,
-            title = "Draft Tersimpan",
-            count = 5,
-            subtitle = "Laporan yang belum dikirim",
-            color = Color(0xFFFFC107)
-        )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ReportActionDialogPreview() {
-    MaterialTheme {
-        val sampleReport = Report(
-            id = "1",
-            category = "Sampah Plastik",
-            description = "Sample report",
-            imageUrl = "",
-            status = "Tersimpan",
-            timestamp = com.google.firebase.Timestamp.now(),
-            location = null
-        )
-
-        ReportActionDialog(
-            report = sampleReport,
-            onDismiss = {},
-            onSend = {},
-            onLocation = {},
-            onDelete = {}
-        )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun EmptyStatePreview() {
-    MaterialTheme {
-        EmptyState(hasSearch = false)
     }
 }

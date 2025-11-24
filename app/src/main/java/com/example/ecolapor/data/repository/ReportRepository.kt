@@ -286,36 +286,33 @@ class ReportRepository(private val context: Context? = null) {
         }
     }
 
-    suspend fun getAllReportsIncludingDrafts(): List<Report> {
-        val reports = mutableListOf<Report>()
-
-        // Get ALL reports from local database (both drafts and sent/cached reports)
-        if (reportDao != null) {
-            val allLocalReports = reportDao.getAllReports().map { entity ->
-                Report(
-                    id = entity.id,
-                    userId = entity.userId,
-                    userName = entity.userName,
-                    category = entity.category,
-                    description = entity.description,
-                    imageUrl = entity.imageUrl,
-                    status = entity.status,
-                    timestamp = Timestamp(Date(entity.timestamp)),
-                    location = com.google.firebase.firestore.GeoPoint(entity.latitude, entity.longitude)
-                )
-            }
-            reports.addAll(allLocalReports)
-            android.util.Log.d("ReportRepository", "Loaded ${allLocalReports.size} reports from local DB")
+    suspend fun clearAllLocalData(): Result<Boolean> {
+        return try {
+            reportDao?.clearAll()
+            android.util.Log.d("ReportRepository", "Successfully cleared all local data")
+            Result.success(true)
+        } catch (e: Exception) {
+            android.util.Log.e("ReportRepository", "Failed to clear local data: ${e.message}", e)
+            Result.failure(e)
         }
-
-        return reports
     }
 
-    fun getReportsRealtime(onDataChanged: (List<Report>) -> Unit, onError: (Exception) -> Unit) {
+    suspend fun getAllReportsIncludingDrafts(): List<Report> {
+        val reports = mutableListOf<Report>()
+        val currentUser = auth.currentUser
 
+        if (currentUser == null) {
+            android.util.Log.w("ReportRepository", "User not logged in")
+            return reports
+        }
+
+        val currentUserId = currentUser.uid
+
+        // Get reports from local database for current user only
         if (reportDao != null) {
-            CoroutineScope(Dispatchers.IO).launch {
-                val cachedData = reportDao.getAllReports().map { entity ->
+            val allLocalReports = reportDao.getAllReports()
+                .filter { it.userId == currentUserId } // Filter by current user
+                .map { entity ->
                     Report(
                         id = entity.id,
                         userId = entity.userId,
@@ -328,17 +325,53 @@ class ReportRepository(private val context: Context? = null) {
                         location = com.google.firebase.firestore.GeoPoint(entity.latitude, entity.longitude)
                     )
                 }
+            reports.addAll(allLocalReports)
+            android.util.Log.d("ReportRepository", "Loaded ${allLocalReports.size} reports for user $currentUserId from local DB")
+        }
+
+        return reports
+    }
+
+    fun getReportsRealtime(onDataChanged: (List<Report>) -> Unit, onError: (Exception) -> Unit) {
+        val currentUser = auth.currentUser
+        if (currentUser == null) {
+            android.util.Log.w("ReportRepository", "User not logged in, cannot fetch reports")
+            onError(Exception("User not logged in"))
+            return
+        }
+
+        val currentUserId = currentUser.uid
+        android.util.Log.d("ReportRepository", "Fetching reports for user: $currentUserId")
+
+        if (reportDao != null) {
+            CoroutineScope(Dispatchers.IO).launch {
+                val cachedData = reportDao.getAllReports()
+                    .filter { it.userId == currentUserId } // Filter by current user
+                    .map { entity ->
+                        Report(
+                            id = entity.id,
+                            userId = entity.userId,
+                            userName = entity.userName,
+                            category = entity.category,
+                            description = entity.description,
+                            imageUrl = entity.imageUrl,
+                            status = entity.status,
+                            timestamp = Timestamp(Date(entity.timestamp)),
+                            location = com.google.firebase.firestore.GeoPoint(entity.latitude, entity.longitude)
+                        )
+                    }
                 // Kirim data offline ke UI
                 if (cachedData.isNotEmpty()) {
                     CoroutineScope(Dispatchers.Main).launch {
                         onDataChanged(cachedData)
-                        android.util.Log.d("ReportRepository", "Sent cached data to UI: ${cachedData.size} reports")
+                        android.util.Log.d("ReportRepository", "Sent cached data to UI: ${cachedData.size} reports for user $currentUserId")
                     }
                 }
             }
         }
 
         firestore.collection("reports")
+            .whereEqualTo("userId", currentUserId) // Filter by current user ID
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
@@ -352,7 +385,7 @@ class ReportRepository(private val context: Context? = null) {
                         report?.copy(id = doc.id)
                     }
 
-                    android.util.Log.d("ReportRepository", "Firestore data received: ${reports.size} reports")
+                    android.util.Log.d("ReportRepository", "Firestore data received: ${reports.size} reports for user $currentUserId")
                     onDataChanged(reports)
 
                     if (reportDao != null) {
@@ -371,10 +404,10 @@ class ReportRepository(private val context: Context? = null) {
                                     longitude = report.location?.longitude ?: 0.0
                                 )
                             }
-                            // Hanya hapus report yang terkirim, JANGAN hapus draft!
+                            // Hanya hapus report yang terkirim milik user ini, JANGAN hapus draft!
                             reportDao.clearSentReports() // Hapus cache lama (yang terkirim saja)
                             reportDao.insertAll(entities) // Simpan cache baru dari Firestore
-                            android.util.Log.d("ReportRepository", "Updated local cache with ${entities.size} reports from Firestore")
+                            android.util.Log.d("ReportRepository", "Updated local cache with ${entities.size} reports for user $currentUserId from Firestore")
                         }
                     }
                 }

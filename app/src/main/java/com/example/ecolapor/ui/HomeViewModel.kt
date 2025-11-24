@@ -150,7 +150,25 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun logout() {
-        android.util.Log.d("HomeViewModel", "Logout triggered")
-        authRepository.logout()
+        viewModelScope.launch {
+            try {
+                android.util.Log.d("HomeViewModel", "Logout triggered - clearing local data")
+                
+                // Bersihkan semua data lokal sebelum logout
+                reportRepository.clearAllLocalData()
+                
+                // Clear StateFlow
+                _reports.value = emptyList()
+                
+                // Logout dari Firebase
+                authRepository.logout()
+                
+                android.util.Log.d("HomeViewModel", "Logout completed successfully")
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Error during logout: ${e.message}", e)
+                // Tetap logout meskipun ada error clearing data
+                authRepository.logout()
+            }
+        }
     }
 }
