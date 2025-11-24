@@ -165,27 +165,30 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
     }
 
     if (selectedReport != null && selectedReport!!.status == "Tersimpan") {
-        AlertDialog(
-            onDismissRequest = { selectedReport = null },
-            title = {
-                Text(
-                    "Opsi Laporan Draft",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Text(
-                    "Pilih aksi untuk laporan yang tersimpan",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
-                )
-            },
-            confirmButton = {
+        Dialog(onDismissRequest = { selectedReport = null }) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    Text(
+                        "Opsi Laporan Draft",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    Text(
+                        "Pilih aksi untuk laporan yang tersimpan",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray
+                    )
+                    
                     Button(
                         onClick = {
                             viewModel.sendDraftReport(selectedReport!!)
@@ -199,6 +202,12 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
                             containerColor = Color(0xFF4CAF50)
                         )
                     ) {
+                        Icon(
+                            Icons.Default.Send,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             "Kirim Laporan",
                             fontWeight = FontWeight.Medium,
@@ -243,6 +252,12 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
                             containerColor = Color(0xFF2196F3)
                         )
                     ) {
+                        Icon(
+                            Icons.Default.LocationOn,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             "Lacak Lokasi",
                             fontWeight = FontWeight.Medium,
@@ -263,59 +278,65 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
                             containerColor = Color(0xFFF44336)
                         )
                     ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             "Hapus Laporan",
                             fontWeight = FontWeight.Medium,
                             fontSize = 16.sp
                         )
                     }
+                    
+                    OutlinedButton(
+                        onClick = { selectedReport = null },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color.Gray
+                        )
+                    ) {
+                        Text(
+                            "Batal",
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 16.sp
+                        )
+                    }
                 }
-            },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = { selectedReport = null },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color.Gray
-                    )
-                ) {
-                    Text(
-                        "Batal",
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 16.sp
-                    )
-                }
-            },
-            containerColor = Color.White,
-            shape = RoundedCornerShape(20.dp)
-        )
+            }
+        }
     }
 
     if (selectedReport != null && (selectedReport!!.status == "Terkirim" || selectedReport!!.status == "Selesai")) {
-        AlertDialog(
-            onDismissRequest = { selectedReport = null },
-            title = {
-                Text(
-                    "Opsi Laporan",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Text(
-                    "Pilih aksi untuk laporan ini",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
-                )
-            },
-            confirmButton = {
+        Dialog(onDismissRequest = { selectedReport = null }) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    Text(
+                        "Opsi Laporan",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    Text(
+                        "Pilih aksi untuk laporan ini",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray
+                    )
+                    
                     Button(
                         onClick = {
                             val report = selectedReport!!
@@ -353,6 +374,12 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
                             containerColor = Color(0xFF2196F3)
                         )
                     ) {
+                        Icon(
+                            Icons.Default.LocationOn,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             "Lacak Lokasi",
                             fontWeight = FontWeight.Medium,
@@ -373,35 +400,38 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
                             containerColor = Color(0xFFF44336)
                         )
                     ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             "Hapus Laporan",
                             fontWeight = FontWeight.Medium,
                             fontSize = 16.sp
                         )
                     }
+                    
+                    OutlinedButton(
+                        onClick = { selectedReport = null },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color.Gray
+                        )
+                    ) {
+                        Text(
+                            "Batal",
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 16.sp
+                        )
+                    }
                 }
-            },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = { selectedReport = null },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color.Gray
-                    )
-                ) {
-                    Text(
-                        "Batal",
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 16.sp
-                    )
-                }
-            },
-            containerColor = Color.White,
-            shape = RoundedCornerShape(20.dp)
-        )
+            }
+        }
     }
 
     Scaffold(
