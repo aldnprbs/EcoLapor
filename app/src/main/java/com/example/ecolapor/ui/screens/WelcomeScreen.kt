@@ -183,31 +183,6 @@ fun WelcomeScreen(navController: NavController) {
                 modifier = Modifier.alpha(if (visible) 1f else 0f)
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                FeatureCard(
-                    icon = Icons.Default.CameraAlt,
-                    title = "Foto",
-                    color = Color(0xFF4CAF50)
-                )
-                FeatureCard(
-                    icon = Icons.Default.LocationOn,
-                    title = "Lokasi",
-                    color = Color(0xFF2196F3)
-                )
-                FeatureCard(
-                    icon = Icons.Default.Send,
-                    title = "Kirim",
-                    color = Color(0xFFFFC107)
-                )
-            }
-
             Spacer(modifier = Modifier.weight(1f))
 
             Card(
@@ -353,62 +328,6 @@ fun WelcomeScreen(navController: NavController) {
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-        }
-    }
-}
-
-@Composable
-fun FeatureCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    color: Color
-) {
-    var visible by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        delay(300)
-        visible = true
-    }
-
-    Card(
-        modifier = Modifier
-            .size(100.dp)
-            .alpha(if (visible) 1f else 0f),
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(color.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    tint = color,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = title,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color.Gray.copy(alpha = 0.8f),
-                textAlign = TextAlign.Center
-            )
         }
     }
 }
