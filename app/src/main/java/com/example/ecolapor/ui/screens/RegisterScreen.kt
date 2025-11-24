@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -71,15 +73,16 @@ fun RegisterScreen(navController: NavController, viewModel: AuthViewModel = view
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .height(620.dp),
+                .wrapContentHeight(),
             shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White)
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(32.dp),
+                    .fillMaxWidth()
+                    .padding(32.dp)
+                    .padding(bottom = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Spacer(modifier = Modifier.height(20.dp))
@@ -199,15 +202,6 @@ fun RegisterScreen(navController: NavController, viewModel: AuthViewModel = view
                     singleLine = true
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "Pastikan password Anda kuat dan mudah diingat",
-                    color = Color.Gray.copy(alpha = 0.6f),
-                    fontSize = 12.sp,
-                    modifier = Modifier.align(Alignment.Start)
-                )
-
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Button(
@@ -230,16 +224,29 @@ fun RegisterScreen(navController: NavController, viewModel: AuthViewModel = view
                         contentColor = Color.White
                     ),
                     elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 4.dp,
-                        pressedElevation = 8.dp
+                        defaultElevation = 6.dp,
+                        pressedElevation = 10.dp
                     )
                 ) {
                     if (state is AuthState.Loading) {
                         CircularProgressIndicator(
                             color = Color.White,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 3.dp
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Mendaftar...",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     } else {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = "Register",
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = "DAFTAR SEKARANG",
                             fontSize = 16.sp,
