@@ -189,7 +189,12 @@ class ReportRepository(private val context: Context? = null) {
                 return Result.failure(Exception("Belum login"))
             }
             
-            android.util.Log.d("ReportRepository", "User ID: ${user.uid}, Name: ${user.displayName}")
+            android.util.Log.d("ReportRepository", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            android.util.Log.d("ReportRepository", "📤 SENDING REPORT")
+            android.util.Log.d("ReportRepository", "User ID: ${user.uid}")
+            android.util.Log.d("ReportRepository", "User Email: ${user.email}")
+            android.util.Log.d("ReportRepository", "User Name: ${user.displayName}")
+            android.util.Log.d("ReportRepository", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             
             val reportWithUser = report.copy(
                 userId = user.uid,
@@ -197,7 +202,7 @@ class ReportRepository(private val context: Context? = null) {
             )
             
             android.util.Log.d("ReportRepository", "Adding report to Firestore...")
-            android.util.Log.d("ReportRepository", "Report data: category=${reportWithUser.category}, status=${reportWithUser.status}")
+            android.util.Log.d("ReportRepository", "Report data: userId=${reportWithUser.userId}, category=${reportWithUser.category}, status=${reportWithUser.status}")
             
             // Add timeout to prevent infinite loading
             val docRef = withTimeout(30000L) { // 30 seconds timeout
@@ -395,7 +400,12 @@ class ReportRepository(private val context: Context? = null) {
         }
 
         val currentUserId = currentUser.uid
-        android.util.Log.d("ReportRepository", "Fetching reports for user: $currentUserId")
+        android.util.Log.d("ReportRepository", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        android.util.Log.d("ReportRepository", "📥 FETCHING REPORTS")
+        android.util.Log.d("ReportRepository", "User ID: $currentUserId")
+        android.util.Log.d("ReportRepository", "User Email: ${currentUser.email}")
+        android.util.Log.d("ReportRepository", "User Name: ${currentUser.displayName}")
+        android.util.Log.d("ReportRepository", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         if (reportDao != null) {
             CoroutineScope(Dispatchers.IO).launch {
@@ -414,54 +424,104 @@ class ReportRepository(private val context: Context? = null) {
                             location = com.google.firebase.firestore.GeoPoint(entity.latitude, entity.longitude)
                         )
                     }
-                // Kirim data offline ke UI
-                if (cachedData.isNotEmpty()) {
-                    CoroutineScope(Dispatchers.Main).launch {
-                        onDataChanged(cachedData)
-                        android.util.Log.d("ReportRepository", "Sent cached data to UI: ${cachedData.size} reports for user $currentUserId")
+                // PERBAIKAN: SELALU kirim data cache (bahkan kalau kosong) untuk init UI
+                CoroutineScope(Dispatchers.Main).launch {
+                    onDataChanged(cachedData)
+                    if (cachedData.isNotEmpty()) {
+                        android.util.Log.d("ReportRepository", "📦 Sent cached data to UI: ${cachedData.size} reports")
+                    } else {
+                        android.util.Log.d("ReportRepository", "📦 No cached data, sent empty list. Waiting for Firestore...")
                     }
                 }
             }
+        } else {
+            // PERBAIKAN: Jika tidak ada DAO, kirim empty list dulu
+            android.util.Log.d("ReportRepository", "⚠️ No local database, waiting for Firestore...")
+            onDataChanged(emptyList())
         }
 
+        android.util.Log.d("ReportRepository", "🔍 Firestore Query: collection('reports').whereEqualTo('userId', '$currentUserId')")
+        android.util.Log.d("ReportRepository", "🎧 Attaching Firestore snapshot listener...")
+        
         firestore.collection("reports")
             .whereEqualTo("userId", currentUserId) // Filter by current user ID
-            .orderBy("timestamp", Query.Direction.DESCENDING)
+            // PERBAIKAN: Hapus orderBy untuk menghindari composite index requirement
+            // Sort akan dilakukan di client side
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
-                    android.util.Log.e("ReportRepository", "Firestore listener error: ${e.message}", e)
+                    android.util.Log.e("ReportRepository", "❌ Firestore listener error: ${e.message}", e)
                     onError(e)
                     return@addSnapshotListener
                 }
                 if (snapshot != null) {
+                    android.util.Log.d("ReportRepository", "🔔 Firestore snapshot received! (listener triggered)")
+                    android.util.Log.d("ReportRepository", "📊 Snapshot metadata: hasPendingWrites=${snapshot.metadata.hasPendingWrites()}, isFromCache=${snapshot.metadata.isFromCache}")
+                    android.util.Log.d("ReportRepository", "📊 Total documents in snapshot: ${snapshot.documents.size}")
+                    
                     val reports = snapshot.documents.mapNotNull { doc ->
-                        val report = doc.toObject(Report::class.java)
-                        report?.copy(id = doc.id)
+                        try {
+                            val report = doc.toObject(Report::class.java)
+                            if (report == null) {
+                                android.util.Log.w("ReportRepository", "⚠️ Failed to parse document: ${doc.id}")
+                            }
+                            report?.copy(id = doc.id)
+                        } catch (e: Exception) {
+                            android.util.Log.e("ReportRepository", "❌ Error parsing document ${doc.id}: ${e.message}", e)
+                            null
+                        }
                     }
+                    // PERBAIKAN: Sort di client side (descending by timestamp)
+                    .sortedByDescending { it.timestamp?.toDate()?.time ?: 0 }
 
-                    android.util.Log.d("ReportRepository", "Firestore data received: ${reports.size} reports for user $currentUserId")
+                    android.util.Log.d("ReportRepository", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                    android.util.Log.d("ReportRepository", "✅ Firestore data received: ${reports.size} reports (after parsing)")
+                    reports.forEachIndexed { index, report ->
+                        android.util.Log.d("ReportRepository", "Report #${index + 1}: id=${report.id}, userId=${report.userId}, category=${report.category}")
+                    }
+                    android.util.Log.d("ReportRepository", "Current User ID: $currentUserId")
+                    android.util.Log.d("ReportRepository", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                     onDataChanged(reports)
 
                     if (reportDao != null) {
                         CoroutineScope(Dispatchers.IO).launch {
-                            val entities = reports.map { report ->
-                                ReportEntity(
-                                    id = report.id,
-                                    userId = report.userId,
-                                    userName = report.userName,
-                                    category = report.category,
-                                    description = report.description,
-                                    imageUrl = report.imageUrl,
-                                    status = report.status,
-                                    timestamp = report.timestamp?.toDate()?.time ?: System.currentTimeMillis(),
-                                    latitude = report.location?.latitude ?: 0.0,
-                                    longitude = report.location?.longitude ?: 0.0
-                                )
+                            try {
+                                // PERBAIKAN: Simpan draft dulu sebelum clear
+                                val existingDrafts = reportDao.getDraftReports()
+                                android.util.Log.d("ReportRepository", "💾 Preserving ${existingDrafts.size} drafts before cache update")
+                                
+                                val entities = reports.map { report ->
+                                    ReportEntity(
+                                        id = report.id,
+                                        userId = report.userId,
+                                        userName = report.userName,
+                                        category = report.category,
+                                        description = report.description,
+                                        imageUrl = report.imageUrl,
+                                        status = report.status,
+                                        timestamp = report.timestamp?.toDate()?.time ?: System.currentTimeMillis(),
+                                        latitude = report.location?.latitude ?: 0.0,
+                                        longitude = report.location?.longitude ?: 0.0
+                                    )
+                                }
+                                
+                                // Clear ONLY sent reports (drafts tetap aman)
+                                reportDao.clearSentReports()
+                                android.util.Log.d("ReportRepository", "🗑️ Cleared sent reports cache")
+                                
+                                // Insert sent reports dari Firestore
+                                reportDao.insertAll(entities)
+                                android.util.Log.d("ReportRepository", "✅ Inserted ${entities.size} sent reports from Firestore")
+                                
+                                // Re-insert drafts (untuk memastikan tidak terhapus)
+                                if (existingDrafts.isNotEmpty()) {
+                                    reportDao.insertAll(existingDrafts)
+                                    android.util.Log.d("ReportRepository", "✅ Re-inserted ${existingDrafts.size} drafts")
+                                }
+                                
+                                android.util.Log.d("ReportRepository", "🔄 Cache sync completed for user $currentUserId")
+                            } catch (e: Exception) {
+                                android.util.Log.e("ReportRepository", "❌ Error updating cache: ${e.message}", e)
                             }
-                            // Hanya hapus report yang terkirim milik user ini, JANGAN hapus draft!
-                            reportDao.clearSentReports() // Hapus cache lama (yang terkirim saja)
-                            reportDao.insertAll(entities) // Simpan cache baru dari Firestore
-                            android.util.Log.d("ReportRepository", "Updated local cache with ${entities.size} reports for user $currentUserId from Firestore")
                         }
                     }
                 }

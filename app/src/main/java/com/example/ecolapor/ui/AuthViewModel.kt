@@ -30,9 +30,14 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch {
             val result = repository.login(email, pass)
             if (result.isSuccess) {
-                android.util.Log.d("AuthViewModel", "✅ Login successful, user: ${result.getOrNull()?.uid}")
-                // PERBAIKAN: Set flag untuk clear cache di HomeViewModel
-                authState = AuthState.Success(result.getOrNull())
+                val user = result.getOrNull()
+                android.util.Log.d("AuthViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                android.util.Log.d("AuthViewModel", "✅ LOGIN SUCCESSFUL")
+                android.util.Log.d("AuthViewModel", "User ID: ${user?.uid}")
+                android.util.Log.d("AuthViewModel", "Email: ${user?.email}")
+                android.util.Log.d("AuthViewModel", "Display Name: ${user?.displayName}")
+                android.util.Log.d("AuthViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                authState = AuthState.Success(user)
             } else {
                 android.util.Log.e("AuthViewModel", "❌ Login failed: ${result.exceptionOrNull()?.message}")
                 authState = AuthState.Error(result.exceptionOrNull()?.message ?: "Login Gagal")

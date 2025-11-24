@@ -20,38 +20,23 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val reports: StateFlow<List<Report>> get() = _reports
 
     init {
-        android.util.Log.d("HomeViewModel", "🚀 HomeViewModel initialized, clearing cache and fetching fresh data")
-        // PERBAIKAN: Clear local cache dulu untuk force sync dari Firestore
-        clearLocalCacheAndFetch()
-    }
-
-    private fun clearLocalCacheAndFetch() {
-        viewModelScope.launch {
-            try {
-                // Clear only sent reports cache (keep drafts)
-                android.util.Log.d("HomeViewModel", "🗑️ Clearing local cache for fresh sync")
-                reportRepository.clearSentReportsCache()
-                // Fetch fresh data
-                fetchReports()
-            } catch (e: Exception) {
-                android.util.Log.e("HomeViewModel", "Error clearing cache: ${e.message}", e)
-                // Still fetch even if clear fails
-                fetchReports()
-            }
-        }
+        android.util.Log.d("HomeViewModel", "🚀 HomeViewModel initialized")
+        // PERBAIKAN: Langsung fetch, biarkan Firestore listener handle sync
+        fetchReports()
     }
 
     private fun fetchReports() {
         android.util.Log.d("HomeViewModel", "Setting up report fetching with realtime listener")
-        loadAllReports()
+        // PERBAIKAN: JANGAN load dulu, tunggu Firestore listener kirim data
+        // loadAllReports() // <-- INI YANG BIKIN LIST KOSONG!
 
         reportRepository.getReportsRealtime(
             onDataChanged = { newReports ->
-                android.util.Log.d("HomeViewModel", "Firestore data changed, reloading all reports")
+                android.util.Log.d("HomeViewModel", "🔔 Firestore data changed, reloading all reports")
                 loadAllReports()
             },
             onError = { e ->
-                android.util.Log.e("HomeViewModel", "Firestore error: ${e.message}", e)
+                android.util.Log.e("HomeViewModel", "❌ Firestore error: ${e.message}", e)
                 e.printStackTrace()
             }
         )
@@ -60,21 +45,51 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private fun loadAllReports() {
         viewModelScope.launch {
             try {
+                android.util.Log.d("HomeViewModel", "📥 Loading all reports from repository...")
                 val drafts = reportRepository.getAllReportsIncludingDrafts()
+                android.util.Log.d("HomeViewModel", "📦 Got ${drafts.size} reports from repository")
+                
                 // Sort by timestamp descending
                 val sortedReports = drafts.sortedByDescending { it.timestamp?.toDate()?.time ?: 0 }
+                
+                // Update StateFlow
                 _reports.value = sortedReports
-                android.util.Log.d("HomeViewModel", "Loaded ${sortedReports.size} reports")
+                
+                android.util.Log.d("HomeViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                android.util.Log.d("HomeViewModel", "✅ Loaded ${sortedReports.size} reports")
+                sortedReports.forEachIndexed { index, report ->
+                    android.util.Log.d("HomeViewModel", "  Report #${index + 1}: ${report.category} - ${report.status}")
+                }
+                android.util.Log.d("HomeViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             } catch (e: Exception) {
-                android.util.Log.e("HomeViewModel", "Error loading reports: ${e.message}", e)
+                android.util.Log.e("HomeViewModel", "❌ Error loading reports: ${e.message}", e)
                 e.printStackTrace()
             }
         }
     }
 
     fun refreshReports() {
-        android.util.Log.d("HomeViewModel", "Manual refresh triggered")
-        loadAllReports()
+        android.util.Log.d("HomeViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        android.util.Log.d("HomeViewModel", "🔄 MANUAL REFRESH TRIGGERED")
+        android.util.Log.d("HomeViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        viewModelScope.launch {
+            try {
+                // Clear sent reports cache untuk force fresh data
+                android.util.Log.d("HomeViewModel", "🗑️ Clearing sent reports cache...")
+                reportRepository.clearSentReportsCache()
+                
+                // Small delay untuk memastikan clear selesai
+                kotlinx.coroutines.delay(200)
+                
+                // Load fresh data (akan trigger Firestore fetch)
+                android.util.Log.d("HomeViewModel", "📥 Loading fresh data...")
+                loadAllReports()
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "❌ Error during refresh: ${e.message}", e)
+                // Still try to load
+                loadAllReports()
+            }
+        }
     }
 
     fun sendDraftReport(report: Report) {
