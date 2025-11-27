@@ -165,19 +165,6 @@ fun AddReportScreen(
         }
     }
 
-    // PENTING: Dapatkan homeViewModel dari backstack dengan cara yang benar
-    val homeViewModel: com.example.ecolapor.ui.HomeViewModel? = navController.previousBackStackEntry?.let { backStackEntry ->
-        viewModel(
-            viewModelStoreOwner = backStackEntry,
-            factory = object : androidx.lifecycle.ViewModelProvider.Factory {
-                override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                    @Suppress("UNCHECKED_CAST")
-                    return com.example.ecolapor.ui.HomeViewModel(context.applicationContext as android.app.Application) as T
-                }
-            }
-        )
-    }
-
     val uiState = viewModel.uiState
     LaunchedEffect(uiState) {
         when (uiState) {
