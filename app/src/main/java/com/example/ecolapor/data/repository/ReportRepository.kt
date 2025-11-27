@@ -31,6 +31,13 @@ class ReportRepository(private val context: Context? = null) {
     private val auth = FirebaseAuth.getInstance()
 
     private val reportDao = context?.let { EcoDatabase.getDatabase(it).reportDao() }
+    
+    // PERBAIKAN: Callback untuk notify perubahan draft
+    private var onDraftChangedCallback: (() -> Unit)? = null
+    
+    fun setDraftChangeListener(callback: () -> Unit) {
+        onDraftChangedCallback = callback
+    }
 
     /**
      * Copy URI to a temporary file in app cache, then upload
@@ -265,6 +272,11 @@ class ReportRepository(private val context: Context? = null) {
 
             reportDao?.insert(draftEntity)
             android.util.Log.d("ReportRepository", "Draft saved to local DB: $draftId")
+            
+            // PERBAIKAN: Notify listener bahwa draft berubah
+            onDraftChangedCallback?.invoke()
+            android.util.Log.d("ReportRepository", "✅ Draft change listener notified")
+            
             Result.success(true)
         } catch (e: Exception) {
             android.util.Log.e("ReportRepository", "Failed to save draft: ${e.message}", e)

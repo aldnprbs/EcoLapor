@@ -21,8 +21,34 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         android.util.Log.d("HomeViewModel", "🚀 HomeViewModel initialized")
-        // PERBAIKAN: Langsung fetch, biarkan Firestore listener handle sync
+        
+        // PERBAIKAN: Setup draft change listener
+        reportRepository.setDraftChangeListener {
+            android.util.Log.d("HomeViewModel", "📝 Draft changed, refreshing UI...")
+            viewModelScope.launch {
+                refreshReportsData()
+            }
+        }
+        
+        // Fetch reports
         fetchReports()
+    }
+
+    // PERBAIKAN: Fungsi helper untuk refresh data (digunakan saat draft berubah)
+    private suspend fun refreshReportsData() {
+        try {
+            val firestoreReports = reportRepository.getAllReportsIncludingDrafts()
+                .filter { it.status != "Tersimpan" } // Exclude drafts
+            val localDrafts = reportRepository.getDraftsFromLocal()
+            
+            val allReports = (firestoreReports + localDrafts).distinctBy { it.id }
+            val sortedReports = allReports.sortedByDescending { it.timestamp?.toDate()?.time ?: 0 }
+            
+            _reports.value = sortedReports
+            android.util.Log.d("HomeViewModel", "✅ Refreshed UI with ${sortedReports.size} reports")
+        } catch (e: Exception) {
+            android.util.Log.e("HomeViewModel", "❌ Error refreshing reports: ${e.message}", e)
+        }
     }
 
     private fun fetchReports() {
