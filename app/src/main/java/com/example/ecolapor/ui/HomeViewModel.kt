@@ -37,17 +37,25 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     // PERBAIKAN: Fungsi helper untuk refresh data (digunakan saat draft berubah)
     private suspend fun refreshReportsData() {
         try {
-            val firestoreReports = reportRepository.getAllReportsIncludingDrafts()
-                .filter { it.status != "Tersimpan" } // Exclude drafts
-            val localDrafts = reportRepository.getDraftsFromLocal()
+            android.util.Log.d("HomeViewModel", "🔄 Refreshing reports data...")
             
-            val allReports = (firestoreReports + localDrafts).distinctBy { it.id }
+            // Get current Firestore reports (non-draft)
+            val currentReports = _reports.value.filter { it.status != "Tersimpan" }
+            android.util.Log.d("HomeViewModel", "📊 Current non-draft reports: ${currentReports.size}")
+            
+            // Get fresh drafts from local DB
+            val localDrafts = reportRepository.getDraftsFromLocal()
+            android.util.Log.d("HomeViewModel", "📦 Fresh local drafts: ${localDrafts.size}")
+            
+            // Combine and update
+            val allReports = (currentReports + localDrafts).distinctBy { it.id }
             val sortedReports = allReports.sortedByDescending { it.timestamp?.toDate()?.time ?: 0 }
             
             _reports.value = sortedReports
-            android.util.Log.d("HomeViewModel", "✅ Refreshed UI with ${sortedReports.size} reports")
+            android.util.Log.d("HomeViewModel", "✅ UI refreshed with ${sortedReports.size} total reports")
         } catch (e: Exception) {
             android.util.Log.e("HomeViewModel", "❌ Error refreshing reports: ${e.message}", e)
+            e.printStackTrace()
         }
     }
 

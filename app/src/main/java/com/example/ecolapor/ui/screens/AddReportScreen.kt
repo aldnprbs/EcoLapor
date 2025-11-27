@@ -166,27 +166,10 @@ fun AddReportScreen(
     }
 
     val uiState = viewModel.uiState
+    
+    // PERBAIKAN: Hanya handle error di sini, success sudah di-handle di onSuccess callback
     LaunchedEffect(uiState) {
         when (uiState) {
-            is ReportState.Success -> {
-                android.util.Log.d("AddReportScreen", "✅ Report submitted successfully, navigating back to home")
-                
-                // PERBAIKAN 1: Refresh HomeViewModel dulu (agar data siap saat kembali)
-                homeViewModel?.let { hvm ->
-                    android.util.Log.d("AddReportScreen", "Triggering manual refresh on HomeViewModel")
-                    hvm.refreshReports()
-                }
-                
-                // PERBAIKAN 2: Reset ViewModel state
-                viewModel.resetState()
-                
-                // PERBAIKAN 3: Show success message
-                Toast.makeText(context, "Berhasil!", Toast.LENGTH_SHORT).show()
-                
-                // PERBAIKAN 4: Navigate back immediately - form akan ter-reset otomatis saat dibuka lagi
-                android.util.Log.d("AddReportScreen", "Executing popBackStack")
-                navController.popBackStack()
-            }
             is ReportState.Error -> {
                 android.util.Log.e("AddReportScreen", "❌ Error: ${uiState.message}")
                 Toast.makeText(context, uiState.message, Toast.LENGTH_LONG).show()
@@ -572,9 +555,20 @@ fun AddReportScreen(
                                 location = currentLocation,
                                 isDraft = true,
                                 onSuccess = {
-                                    android.util.Log.d("AddReportScreen", "Draft saved, triggering UI refresh...")
-                                    // Trigger manual refresh untuk draft
-                                    homeViewModel?.refreshReports()
+                                    android.util.Log.d("AddReportScreen", "✅ Draft saved successfully!")
+                                    
+                                    // Show toast feedback
+                                    Toast.makeText(context, "Draft berhasil disimpan!", Toast.LENGTH_SHORT).show()
+                                    
+                                    // Trigger refresh if homeViewModel available
+                                    if (homeViewModel != null) {
+                                        android.util.Log.d("AddReportScreen", "Triggering UI refresh...")
+                                        homeViewModel.refreshReports()
+                                    } else {
+                                        android.util.Log.w("AddReportScreen", "⚠️ HomeViewModel is null, skipping refresh")
+                                    }
+                                    
+                                    // Navigate back
                                     navController.popBackStack()
                                 }
                             )
@@ -621,7 +615,8 @@ fun AddReportScreen(
                                 location = currentLocation,
                                 isDraft = false,
                                 onSuccess = {
-                                    android.util.Log.d("AddReportScreen", "Report sent successfully")
+                                    android.util.Log.d("AddReportScreen", "✅ Report sent successfully!")
+                                    Toast.makeText(context, "Laporan berhasil dikirim!", Toast.LENGTH_SHORT).show()
                                     navController.popBackStack()
                                 }
                             )
