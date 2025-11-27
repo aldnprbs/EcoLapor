@@ -114,20 +114,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshReports() {
         android.util.Log.d("HomeViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        android.util.Log.d("HomeViewModel", "🔄 MANUAL REFRESH TRIGGERED")
+        android.util.Log.d("HomeViewModel", "🔄 MANUAL REFRESH TRIGGERED (for drafts)")
         android.util.Log.d("HomeViewModel", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         viewModelScope.launch {
             try {
-                // Clear sent reports cache untuk force fresh data
-                android.util.Log.d("HomeViewModel", "🗑️ Clearing sent reports cache...")
-                reportRepository.clearSentReportsCache()
-                
-                // Small delay untuk memastikan clear selesai
-                kotlinx.coroutines.delay(300)
-                
-                // PERBAIKAN: Firestore listener akan otomatis trigger update
-                // Tidak perlu manual load karena akan overwrite dengan cache kosong
-                android.util.Log.d("HomeViewModel", "✅ Cache cleared, waiting for Firestore listener to update...")
+                // PERBAIKAN: Langsung refresh data untuk draft
+                refreshReportsData()
             } catch (e: Exception) {
                 android.util.Log.e("HomeViewModel", "❌ Error during refresh: ${e.message}", e)
             }

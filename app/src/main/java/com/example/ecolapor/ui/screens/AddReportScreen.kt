@@ -53,6 +53,13 @@ fun AddReportScreen(
             }
         }
     )
+    
+    // PERBAIKAN: Get HomeViewModel from backstack untuk trigger refresh
+    val homeViewModel = navController.previousBackStackEntry?.let {
+        androidx.lifecycle.viewmodel.compose.viewModel<com.example.ecolapor.ui.HomeViewModel>(
+            viewModelStoreOwner = it
+        )
+    }
 
     val primaryColor = MaterialTheme.colorScheme.primary
     val surfaceColor = MaterialTheme.colorScheme.surface
@@ -571,7 +578,19 @@ fun AddReportScreen(
                 ) {
                     OutlinedButton(
                         onClick = {
-                            viewModel.submitReport(description, category, imageUri, currentLocation, isDraft = true)
+                            viewModel.submitReport(
+                                description = description,
+                                category = category,
+                                imageUri = imageUri,
+                                location = currentLocation,
+                                isDraft = true,
+                                onSuccess = {
+                                    android.util.Log.d("AddReportScreen", "Draft saved, triggering UI refresh...")
+                                    // Trigger manual refresh untuk draft
+                                    homeViewModel?.refreshReports()
+                                    navController.popBackStack()
+                                }
+                            )
                         },
                         enabled = uiState !is ReportState.Loading,
                         modifier = Modifier
@@ -608,7 +627,17 @@ fun AddReportScreen(
 
                     Button(
                         onClick = {
-                            viewModel.submitReport(description, category, imageUri, currentLocation, isDraft = false)
+                            viewModel.submitReport(
+                                description = description,
+                                category = category,
+                                imageUri = imageUri,
+                                location = currentLocation,
+                                isDraft = false,
+                                onSuccess = {
+                                    android.util.Log.d("AddReportScreen", "Report sent successfully")
+                                    navController.popBackStack()
+                                }
+                            )
                         },
                         enabled = uiState !is ReportState.Loading,
                         modifier = Modifier
